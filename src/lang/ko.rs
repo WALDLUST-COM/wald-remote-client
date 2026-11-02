@@ -839,7 +839,9 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Show monitor switch button on the main toolbar", "기본 도구 모음에 모니터 전환 버튼 표시"),
         ("Show on the minimized toolbar", "최소화된 도구 모음에 표시"),
         ("All monitors", "모든 모니터"),
-        ("#{} monitor", "#{} 모니터"),
+        ("#{} monitor", "{}번 모니터"),
+        // Waldlust(DSK-07): 모니터 선택 목록의 주 모니터 표시(부록 A-70).
+        ("Primary monitor", "주 모니터"),
         // Waldlust(DSK-08): 파일 전송 목록의 받은 파일 열기.
         ("Open file", "파일 열기"),
         ("Open folder", "폴더 열기"),

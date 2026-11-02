@@ -144,10 +144,16 @@ class _ToolbarPreviewState extends State<_ToolbarPreview>
     pi.version = '1.4.8';
     pi.username = 'wald';
     pi.hostname = widget.android ? 'PREVIEW-PHONE' : 'PREVIEW-PC';
+    // 모니터 선택 메뉴(부록 A-70)에 해상도·주 모니터 줄이 보이도록 실제 PC 같은 값.
     pi.displays.value = [
-      Display(),
+      Display()
+        ..width = 2560
+        ..height = 1440,
       if (!widget.android)
-        Display()..x = kDesktopDefaultDisplayWidth.toDouble(),
+        Display()
+          ..x = 2560
+          ..width = 1920
+          ..height = 1080,
     ];
     pi.displaysCount.value = widget.android ? 1 : 2;
     _ffi.ffiModel.setPermissions({

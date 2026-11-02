@@ -1121,8 +1121,9 @@ class _MonitorMenu extends StatelessWidget {
 
   Widget buildMonitorMenu(BuildContext context) {
     final width = SimpleWrapper<double>(0);
-    final monitorsIcon =
-        globalMonitorsWidget(width, Colors.white, Colors.black38);
+    // Waldlust(DSK-07): 지금 보는 모니터 = 흰 채움·검은 숫자, 나머지 = 회색 테두리(부록 A-70).
+    final monitorsIcon = globalMonitorsWidget(
+        width, WaldPalette.neutral900, WaldPalette.white);
     return _IconSubmenuButton(
         tooltip: 'Select Monitor',
         label: 'Monitor',
@@ -1131,9 +1132,6 @@ class _MonitorMenu extends StatelessWidget {
         width: width.value,
         color: _ToolbarTheme.pillColor,
         hoverColor: _ToolbarTheme.hoverPillColor,
-        menuStyle: MenuStyle(
-            padding:
-                MaterialStatePropertyAll(EdgeInsets.symmetric(horizontal: 6))),
         menuChildrenGetter: (_) => [buildMonitorSubmenuWidget(context)]);
   }
 
@@ -1145,11 +1143,58 @@ class _MonitorMenu extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(children: buildMonitorList(context, false)),
+        buildMonitorRadioList(),
         supportIndividualWindows ? Divider() : Offstage(),
         supportIndividualWindows ? chooseDisplayBehavior() : Offstage(),
       ],
     );
+  }
+
+  // Waldlust(DSK-07): 모니터를 아이콘 줄이 아니라 라디오 목록으로 보인다(부록 A-70).
+  // 줄마다 'N번 모니터', 해상도, 주 모니터 표시. 지금 보는 모니터는 라디오가 켜져 있다.
+  Widget buildMonitorRadioList() {
+    final pi = ffi.ffiModel.pi;
+    final display = CurrentDisplayState.find(id);
+    // Display 에는 주 모니터 표시가 없다. Windows·macOS 는 주 모니터의 원점이 늘 (0,0)이다.
+    final showPrimary = pi.platform == kPeerPlatformWindows ||
+        pi.platform == kPeerPlatformMacOS;
+
+    Widget radio(int i, Widget child) => RdoMenuButton<int>(
+          value: i,
+          groupValue: display.value,
+          onChanged: (v) {
+            if (v != null) onPressed(v, pi, false);
+          },
+          child: child,
+        );
+
+    return Obx(() {
+      final children = <Widget>[];
+      for (int i = 0; i < pi.displays.length; i++) {
+        final d = pi.displays[i];
+        final detail = [
+          '${d.width}×${d.height}',
+          if (showPrimary && d.x == 0 && d.y == 0) translate('Primary monitor'),
+        ].join(' · ');
+        children.add(radio(
+            i,
+            Row(mainAxisSize: MainAxisSize.min, children: [
+              Text(translate('#{${i + 1}} monitor')),
+              SizedBox(width: 12),
+              Text(detail,
+                  style: TextStyle(
+                      color: WaldPalette.neutral500, fontSize: 12)),
+            ])));
+      }
+      if (supportIndividualWindows && pi.displays.length > 1) {
+        children.add(radio(kAllDisplayValue, Text(translate('All monitors'))));
+      }
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      );
+    });
   }
 
   Widget chooseDisplayBehavior() {
@@ -1167,16 +1212,29 @@ class _MonitorMenu extends StatelessWidget {
         child: Text(translate('Show displays as individual windows')));
   }
 
-  buildOneMonitorButton(i, curDisplay) => Text(
+  // Waldlust(DSK-07): 지금 보는 모니터 = 흰 채움·검은 숫자, 나머지 = 회색 테두리·회색 숫자(부록 A-70).
+  buildOneMonitorButton(i, curDisplay) {
+    final active = i == curDisplay;
+    return Container(
+      width: 22,
+      height: 18,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: active ? WaldPalette.white : Colors.transparent,
+        border: Border.all(
+            color: active ? WaldPalette.white : WaldPalette.neutral400),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
         '${i + 1}',
         style: TextStyle(
-          color: i == curDisplay
-              ? _ToolbarTheme.blueColor
-              : _ToolbarTheme.inactiveColor,
+          color: active ? WaldPalette.neutral900 : WaldPalette.neutral400,
           fontSize: 12,
           fontWeight: FontWeight.bold,
         ),
-      );
+      ),
+    );
+  }
 
   List<Widget> buildMonitorList(BuildContext context, bool isMulti) {
     final List<Widget> monitorList = [];
@@ -1190,7 +1248,7 @@ class _MonitorMenu extends StatelessWidget {
           Widget? monitorsIcon;
           if (isAllMonitors) {
             monitorsIcon = globalMonitorsWidget(
-                width, Colors.white, _ToolbarTheme.blueColor);
+                width, WaldPalette.neutral900, WaldPalette.white);
           }
           return _IconMenuButton(
             tooltip: isMulti
@@ -1214,17 +1272,7 @@ class _MonitorMenu extends StatelessWidget {
                     alignment: AlignmentDirectional.center,
                     constraints:
                         const BoxConstraints(minHeight: _ToolbarTheme.height),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        SvgPicture.asset(
-                          "assets/screen.svg",
-                          colorFilter:
-                              ColorFilter.mode(Colors.white, BlendMode.srcIn),
-                        ),
-                        Obx(() => buildOneMonitorButton(i, display.value)),
-                      ],
-                    ),
+                    child: buildOneMonitorButton(i, display.value),
                   ),
             onPressed: () => onPressed(i, pi, isMulti),
           );
@@ -1264,6 +1312,8 @@ class _MonitorMenu extends StatelessWidget {
                 ? dWidth * scale
                 : dHeight * scale) *
             0.65;
+        // Waldlust(DSK-07): 보고 있는 모니터(모든 모니터 보기면 전부)만 채우고 나머지는 회색 테두리(부록 A-70).
+        final active = display.value == i || display.value == kAllDisplayValue;
         children.add(Positioned(
           left: (d.x - rect.left) * scale + startX,
           top: (d.y - rect.top) * scale + startY,
@@ -1272,18 +1322,16 @@ class _MonitorMenu extends StatelessWidget {
           child: Container(
             decoration: BoxDecoration(
               border: Border.all(
-                color: Colors.grey,
+                color: active ? activeBgColor : WaldPalette.neutral400,
                 width: 1.0,
               ),
-              color: display.value == i ? activeBgColor : Colors.white,
+              color: active ? activeBgColor : Colors.transparent,
             ),
             child: Center(
                 child: Text(
               '${i + 1}',
               style: TextStyle(
-                color: display.value == i
-                    ? activeTextColor
-                    : _ToolbarTheme.inactiveColor,
+                color: active ? activeTextColor : WaldPalette.neutral400,
                 fontSize: fontSize,
                 fontWeight: FontWeight.bold,
               ),
@@ -2921,7 +2969,6 @@ class _IconSubmenuButton extends StatefulWidget {
   final Color color;
   final Color hoverColor;
   final List<Widget> Function(_IconSubmenuButtonState state) menuChildrenGetter;
-  final MenuStyle? menuStyle;
   final FFI? ffi;
   final double? width;
   final String? label;
@@ -2936,7 +2983,6 @@ class _IconSubmenuButton extends StatefulWidget {
     required this.hoverColor,
     required this.menuChildrenGetter,
     this.ffi,
-    this.menuStyle,
     this.width,
   }) : super(key: key);
 
@@ -2972,8 +3018,7 @@ class _IconSubmenuButtonState extends State<_IconSubmenuButton> {
         width: labeled?.width ?? widget.width ?? _ToolbarTheme.buttonSize,
         height: labeled?.height ?? _ToolbarTheme.buttonSize,
         child: SubmenuButton(
-            menuStyle:
-                widget.menuStyle ?? _ToolbarTheme.defaultMenuStyle(context),
+            menuStyle: _ToolbarTheme.defaultMenuStyle(context),
             style: _ToolbarTheme.defaultMenuButtonStyle,
             onHover: (value) => setState(() {
                   hover = value;
