@@ -983,6 +983,11 @@ void androidChannelInit() {
             } else if (event == "blocked") {
               showToast(translate("wald-helper-install-blocked-tip"),
                   timeout: const Duration(seconds: 10));
+            } else if (event == "inject_installed") {
+              // 결정 D48: 입력 플러그인 설치 결과
+              showToast(translate("wald-inject-installed-toast"));
+            } else if (event == "inject_failed" || event == "inject_blocked") {
+              showToast(translate("wald-inject-install-failed-tip"));
             }
             waldHelperChanged.value++;
             break;

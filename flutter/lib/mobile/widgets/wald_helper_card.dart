@@ -6,6 +6,8 @@
 //   명령을 보여 준다.
 // - 입력 제어(도우미) — 2단계(결정 D41): 도우미 접근성이 켜져 있으면 앱을 강제 종료해도 입력 제어가 남아 adb 1회 설정이 필요 없다.
 //   도우미에 그 기능이 있으면 줄을 보이고, 켜져 있으면 adb 줄은 숨긴다.
+// - 화면 입력(플러그인) — 결정 D48: 이 앱에 든 입력 플러그인이 이 기기 플랫폼 키와 맞으면(터치가 있어도) 줄을 보이고 설치를 권한다.
+//   터치 패널이 없는 화면은 플러그인이 없으면 원격 클릭이 안 된다(부록 A-69). 도우미 설치에 이어 설치 창이 한 번 더 뜬다(WaldHelper.kt).
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +32,9 @@ bool _waldHelperPrompted = false;
 bool _waldHelperInputPrompted = false;
 bool _waldHelperInputSeenOn = false;
 
+/// 앱을 연 동안(프로세스) 한 번만 입력 플러그인 설치를 권한다(도우미 권유 창에 함께 적었으면 따로 권하지 않는다).
+bool _waldInjectPrompted = false;
+
 /// 도우미에 입력 제어 기능이 있다(마지막으로 읽은 값) — 입력 제어 안내(server_model.dart showInputWarnAlert)가 도우미 항목을 가리킨다.
 bool waldHelperInputCapable = false;
 
@@ -40,11 +45,30 @@ class _WaldHelperStatus {
   final bool adbGranted;
   final bool inputCapable;
   final bool inputOn;
+  final bool injectApplicable;
+  final bool injectInstalled;
+  final bool injectNeedsUpdate;
+  final bool injectUsed;
+  final bool noTouch;
 
-  const _WaldHelperStatus(this.installed, this.hasBundle, this.needsUpdate,
-      this.adbGranted, this.inputCapable, this.inputOn);
+  const _WaldHelperStatus(
+      this.installed,
+      this.hasBundle,
+      this.needsUpdate,
+      this.adbGranted,
+      this.inputCapable,
+      this.inputOn,
+      this.injectApplicable,
+      this.injectInstalled,
+      this.injectNeedsUpdate,
+      this.injectUsed,
+      this.noTouch);
 
   bool get helperOk => installed && !needsUpdate;
+
+  /// 이 기기에 맞는 플러그인이 아직 없거나 옛 버전이다(권유 창 기준 — 연결 중인 잠깐은 넣지 않는다).
+  bool get injectMissing =>
+      injectApplicable && (!injectInstalled || injectNeedsUpdate);
 
   static Future<_WaldHelperStatus?> fetch() async {
     try {
@@ -57,7 +81,12 @@ class _WaldHelperStatus {
           m['needsUpdate'] == true,
           m['adbGranted'] == true,
           m['inputCapable'] == true,
-          m['inputOn'] == true);
+          m['inputOn'] == true,
+          m['injectApplicable'] == true,
+          m['injectInstalled'] == true,
+          m['injectNeedsUpdate'] == true,
+          m['injectUsed'] == true,
+          m['noTouch'] == true);
     } catch (e) {
       debugPrint('wald_helper_status: $e');
       return null;
@@ -122,6 +151,51 @@ class _WaldHelperCardState extends State<WaldHelperCard>
     if (r != 'started') setState(() => _busy = false);
   }
 
+  Future<void> _installInject() async {
+    setState(() => _busy = true);
+    final r = await platformFFI.invokeMethod('wald_inject_install');
+    if (!mounted) return;
+    if (r == 'settings') {
+      showToast(translate('wald-helper-allow-source-tip'),
+          timeout: const Duration(seconds: 6));
+    } else if (r != 'started') {
+      showToast(translate('wald-inject-install-failed-tip'));
+    }
+    if (r != 'started') setState(() => _busy = false);
+  }
+
+  // 도우미가 최신인데 이 기기에 맞는 입력 플러그인이 없으면 한 번 권한다(터치 없는 화면은 '필요', 그 밖은 '권장').
+  void _maybePromptInject(_WaldHelperStatus status, bool serviceRunning) {
+    if (_waldInjectPrompted || !serviceRunning || !status.injectMissing) {
+      _maybePromptInput(status, serviceRunning);
+      return;
+    }
+    _waldInjectPrompted = true;
+    final update = status.injectInstalled;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      gFFI.dialogManager.show((setState, close, context) => CustomAlertDialog(
+            title: Text(translate(update
+                ? 'wald-inject-update-title'
+                : 'wald-inject-prompt-title')),
+            content: Text(translate(status.noTouch
+                ? 'wald-inject-prompt-notouch-tip'
+                : 'wald-inject-prompt-tip')),
+            actions: [
+              dialogButton('wald-helper-later',
+                  onPressed: close, isOutline: true),
+              dialogButton(
+                  update ? 'wald-inject-update' : 'wald-inject-install',
+                  onPressed: () {
+                close();
+                _installInject();
+              }),
+            ],
+            onCancel: close,
+          ));
+    });
+  }
+
   void _openAccessibilitySettings() {
     AndroidPermissionManager.startAction(kActionAccessibilitySettings);
   }
@@ -163,18 +237,24 @@ class _WaldHelperCardState extends State<WaldHelperCard>
         !serviceRunning ||
         !status.hasBundle ||
         status.helperOk) {
-      _maybePromptInput(status, serviceRunning);
+      _maybePromptInject(status, serviceRunning);
       return;
     }
     _waldHelperPrompted = true;
     final update = status.installed;
+    // 도우미 설치에 이어 플러그인 설치 창이 뜬다(WaldHelperInstallReceiver) — 같은 창에 적고 따로 권하지 않는다.
+    final withInject = status.injectMissing;
+    if (withInject) _waldInjectPrompted = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       gFFI.dialogManager.show((setState, close, context) => CustomAlertDialog(
             title: Text(translate(update
                 ? 'wald-helper-update-title'
                 : 'wald-helper-prompt-title')),
-            content: Text(translate('wald-helper-prompt-tip')),
+            content: Text(translate('wald-helper-prompt-tip') +
+                (withInject
+                    ? '\n\n${translate('wald-inject-with-helper-tip')}'
+                    : '')),
             actions: [
               dialogButton('wald-helper-later',
                   onPressed: close, isOutline: true),
@@ -257,6 +337,32 @@ class _WaldHelperCardState extends State<WaldHelperCard>
                       icon: Icon(waldIcon(Icons.settings)),
                       onPressed: _openAccessibilitySettings,
                       label: Text(translate('wald-helper-input-open'),
+                          strutStyle: waldButtonStrut())),
+            ),
+          ],
+          if (status.injectApplicable) ...[
+            const SizedBox(height: 14),
+            _row(
+              ok: status.injectUsed && !status.injectNeedsUpdate,
+              title: translate('wald-inject-row'),
+              tip: translate(!status.injectInstalled
+                  ? (status.noTouch
+                      ? 'wald-inject-missing-notouch-tip'
+                      : 'wald-inject-missing-tip')
+                  : (status.injectNeedsUpdate
+                      ? 'wald-inject-update-tip'
+                      : (status.injectUsed
+                          ? 'wald-inject-on-tip'
+                          : 'wald-inject-idle-tip'))),
+              action: status.injectUsed && !status.injectNeedsUpdate
+                  ? null
+                  : ElevatedButton.icon(
+                      icon: Icon(waldIcon(Icons.download)),
+                      onPressed: _busy ? null : _installInject,
+                      label: Text(
+                          translate(status.injectInstalled
+                              ? 'wald-inject-update'
+                              : 'wald-inject-install'),
                           strutStyle: waldButtonStrut())),
             ),
           ],

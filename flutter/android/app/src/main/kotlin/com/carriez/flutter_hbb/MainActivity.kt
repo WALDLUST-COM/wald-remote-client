@@ -69,6 +69,7 @@ class MainActivity : FlutterActivity() {
         super.onResume()
         // Waldlust(DSK-02 — 결정 D40): '출처를 알 수 없는 앱 설치'를 허용하고 돌아오면 도우미 설치를 이어 간다.
         WaldHelper.resumePendingInstall(this)
+        WaldInjector.bundle.resumePendingInstall(this) // 입력 플러그인도(결정 D48)
         // Waldlust(DSK-01 — 결정 D44): 앱 안 업데이트도 같다.
         WaldSelfUpdate.resumePendingInstall(this)
         val inputPer = WaldInputBridge.isInputOpen()
@@ -132,6 +133,7 @@ class MainActivity : FlutterActivity() {
         WaldHelper.activateIfStopped(this)
         // 이 앱에 든 도우미가 더 새 버전이면 Android 12+ 는 창 없이 업데이트한다(그 밖은 홈 카드가 권한다).
         WaldHelper.updateSilentlyIfNeeded(this)
+        WaldInjector.updateSilentlyIfNeeded(this) // 입력 플러그인도(결정 D48 — 이 기기 플랫폼 키와 맞을 때만)
         // Waldlust(DSK-02 2단계 — 결정 D41): 도우미 입력 제어에 연결(adb 권한이 없어도)
         WaldInputBridge.ensureBound(this)
     }
@@ -199,6 +201,10 @@ class MainActivity : FlutterActivity() {
                 }
                 "wald_helper_install" -> {
                     result.success(WaldHelper.install(this@MainActivity))
+                }
+                // 결정 D48: 이 기기 플랫폼 키와 맞는 입력 플러그인(앱 안 설치 파일)을 설치한다.
+                "wald_inject_install" -> {
+                    result.success(WaldInjector.install(this@MainActivity))
                 }
                 // Waldlust(DSK-01 — 결정 D44): 수신 전용 앱 안 업데이트 — Rust 가 받아 확인한 APK 를 설치(WaldSelfUpdate.kt).
                 "wald_self_update_install" -> {

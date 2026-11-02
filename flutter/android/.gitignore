@@ -12,3 +12,7 @@ key.properties
 
 # Waldlust(DSK-02 — 결정 D40): 빌드 스크립트(build-android-local.sh)가 수신 전용 빌드 때 넣는 도우미 설치 파일
 app/src/main/assets/wald-helper.apk
+
+# Waldlust(DSK-02 — 결정 D48): 수신 전용 빌드가 보드 플랫폼 키가 있을 때 넣는 입력 플러그인 설치 파일과 그 플랫폼 인증서 SHA-256
+app/src/main/assets/wald-inject.apk
+app/src/main/assets/wald-inject.cert
