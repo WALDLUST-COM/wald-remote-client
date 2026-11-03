@@ -19,7 +19,7 @@ Installer file names: `waldlust-remote[-incoming|-mobile]-<version>-<os>[-<arch>
 `waldlust-remote-incoming-1.5.0-windows-x86.exe`, `waldlust-remote-mobile-1.5.6-ios.ipa`). A release tag's version must equal the source version (Cargo.toml, pubspec.yaml).
 
 Each script header lists the toolchain it expects (Rust, Flutter, vcpkg commit, NDK, LLVM, Inno Setup).
-The submodule `libs/hbb_common` is pinned at 76cc24163a3dc42d61f8f3104e7d93dcf7b0ae11 (https://github.com/stevewoochoi/hbb_common).
+The submodule `libs/hbb_common` is pinned at 76cc24163a3dc42d61f8f3104e7d93dcf7b0ae11 (https://github.com/WALDLUST-COM/hbb_common).
 
 ## Values injected at build time
 

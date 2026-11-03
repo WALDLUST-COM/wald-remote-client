@@ -6,7 +6,7 @@ GNU Affero General Public License 3.0(AGPL-3.0)에 따라 배포합니다.
 
 - 라이선스 전문: 설치 폴더의 LICENCE.txt
 - 수정 사실·소스 코드 위치: 설치 폴더의 NOTICE.txt
-  (https://github.com/waldlustpos/wald-remote-client — 릴리즈 태그 wald-v<버전>-r<번호>)
+  (https://github.com/WALDLUST-COM/wald-remote-client — 릴리즈 태그 wald-v<버전>-r<번호>)
 - 제3자 라이선스: 설치 폴더의 THIRD_PARTY_NOTICES.txt
 - 릴리즈별 고지: https://remote.waldpay.co.kr/oss
 - 이 프로그램이 서버로 보내는 정보: https://remote.waldpay.co.kr/privacy
