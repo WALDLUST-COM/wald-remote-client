@@ -206,7 +206,11 @@ fun setCodecInfo(context: Context) {
             val caps = codec.getCapabilitiesForType(mime_type)
             if (codec.isEncoder) {
                 // Encoder's max_height and max_width are interchangeable
-                if (!caps.videoCapabilities.isSizeSupported(w,h) && !caps.videoCapabilities.isSizeSupported(h,w)) {
+                // Rockchip OMX AVC 인코더(RK3568)는 1920x1088 이라고 선언하지만 MPP 는 1200x1920 패널도
+                // 인코딩한다. 막으면 소프트웨어·반 해상도가 되므로 긴 변이 선언 최대 이내면 통과시킨다.
+                val rkFits = codec.name.startsWith("OMX.rk.", true) &&
+                    maxOf(w, h) <= maxOf(caps.videoCapabilities.supportedWidths.upper, caps.videoCapabilities.supportedHeights.upper)
+                if (!rkFits && !caps.videoCapabilities.isSizeSupported(w,h) && !caps.videoCapabilities.isSizeSupported(h,w)) {
                     return@forEach
                 }
             }
