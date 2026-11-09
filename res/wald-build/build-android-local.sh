@@ -31,7 +31,7 @@
 #          시험 기기는 운영 목록에 '미지정'으로 올라간다. 결과 이름이 localtest 가 아니라 prodtest 라 dummy·mock 시험본을 덮지 않는다.
 #          기기는 인터넷으로 운영에 닿는다(adb reverse 필요 없음). 수신 전용 비밀번호는 여전히 테스트 값이 기본이다.
 #   release: 정식 배포본(계획 ADMIN_LOCAL_PLAN 4-1, 결정 D33~D35 — 2026-10-14 사용자). 주소는 prodtest 와 같다.
-#          ref 는 waldlustpos(origin)에 푸시된 wald-v<버전>-r<N> 태그만 받는다(태그 버전 = 소스 버전이어야 한다 — D36).
+#          ref 는 WALDLUST-COM(origin)에 푸시된 wald-v<버전>-r<N> 태그만 받는다(태그 버전 = 소스 버전이어야 한다 — D36).
 #          수신 전용은 운영 공통 비밀번호(incoming-prod.env)만 받는다.
 #          서명 = 릴리즈 키(~/wald-build/keys/android-release.properties — make-android-release-key.sh 가 만든다, debug 치환 안 함),
 #          서명 지문은 ~/wald-build/keys/android-release.sha256 과 같아야 한다. versionCode 는 태그에서 계산한다(D36):
@@ -105,7 +105,7 @@ export BINDGEN_EXTRA_CLANG_ARGS_armv7_linux_androideabi="--sysroot=$NDKSYS"
 step() { echo "== $1 $(date +%T)"; }
 die() { echo "FAIL: $1 (로그: $LOG)"; exit 1; }
 
-# release: origin(waldlustpos)에 있는 wald-v* 태그·릴리즈 키·versionCode·운영 비밀번호를 빌드 전에 확인한다.
+# release: origin(WALDLUST-COM)에 있는 wald-v* 태그·릴리즈 키·versionCode·운영 비밀번호를 빌드 전에 확인한다.
 if [ "$TARGET" = release ]; then
   [[ "$BASE" =~ '^wald-v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$' ]] || die "release 는 wald-v<버전>-r<N> 태그만 받는다(받은 값: $BASE)"
   rc=$(git -C "$R" ls-remote origin "refs/tags/$BASE^{}" | awk '{print $1}')

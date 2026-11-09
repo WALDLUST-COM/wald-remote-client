@@ -23,7 +23,7 @@
 #   prodtest: 운영 서버로 보내는 시험 빌드(macOS·Android 의 prodtest 와 같다 — 결정 C4). heartbeat = https://remote.waldpay.co.kr/api/heartbeat,
 #          WALDLUST_API_SERVER = https://remote.waldpay.co.kr/rd. 운영 어드민 목록에 '미지정'으로 올라간다. 현장 배포용이 아니다.
 #   release: 정식 모바일 배포본(결정 D43 — 2026-10-23 사용자: 1.5.6 r2 부터, Ad Hoc → 10-26 배포 인증서 한도로 Development). 주소는 prodtest 와 같다.
-#          ref 는 waldlustpos(origin)에 푸시된 wald-v<버전>-r<N> 태그만, 태그 버전 = 소스 버전(D36).
+#          ref 는 WALDLUST-COM(origin)에 푸시된 wald-v<버전>-r<N> 태그만, 태그 버전 = 소스 버전(D36).
 #          CFBundleVersion(빌드 번호) = Android versionCode 와 같은 식 M×1,000,000 + m×10,000 + p×100 + r.
 #          dist 에 NOTICE·LICENCE·THIRD_PARTY_NOTICES-ios.txt(cargo-about 0.6.4 필요).
 #   heartbeat 담당 포트(127.0.0.1:47635)는 시뮬레이터와 Mac 이 같이 쓴다 — Mac 에서 Waldlust 앱이 돌고 있으면 시뮬레이터 앱은 보내지 않고 기다린다.
@@ -165,7 +165,7 @@ xcodebuild -version >/dev/null 2>&1 || die "Xcode 가 선택되지 않았거나 
 rustup +1.75 target list --installed | grep -qx $RUST_TARGET || die "rustup target add $RUST_TARGET --toolchain 1.75"
 grep -q '"enable-ios": true' "$XDG_CONFIG_HOME/flutter/settings" 2>/dev/null || die "iOS 를 켠 Flutter 설정이 없다: $XDG_CONFIG_HOME/flutter/settings"
 
-# release: origin(waldlustpos)에 있는 wald-v* 태그·빌드 번호(D36)·cargo-about 을 빌드 전에 확인한다(build-android-local.sh 와 같다).
+# release: origin(WALDLUST-COM)에 있는 wald-v* 태그·빌드 번호(D36)·cargo-about 을 빌드 전에 확인한다(build-android-local.sh 와 같다).
 BUILD_NO=""
 if [ "$TARGET" = release ]; then
   [[ "$BASE" =~ '^wald-v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$' ]] || die "release 는 wald-v<버전>-r<N> 태그만 받는다(받은 값: $BASE)"

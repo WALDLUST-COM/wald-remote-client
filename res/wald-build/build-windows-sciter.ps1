@@ -15,7 +15,7 @@
 #   (127.0.0.1:8787 + WALDLUST_API_SERVER=http://127.0.0.1:8787/rd). Only release talks to the production admin.
 # - release: official build (plan ADMIN_LOCAL_PLAN 4-1, decisions D33-D35 - 2026-10-14). heartbeat
 #   https://remote.waldpay.co.kr/api/heartbeat + WALDLUST_API_SERVER=https://remote.waldpay.co.kr/rd (same as the x64 release).
-#   -Ref must be a wald-v* tag pushed to origin (waldlustpos), -Inno and -Variant incoming are required, and only
+#   -Ref must be a wald-v* tag pushed to origin (WALDLUST-COM), -Inno and -Variant incoming are required, and only
 #   -IncomingEnv C:\wald-build\incoming-prod.env is accepted. NOTICE.txt, LICENCE.txt and THIRD_PARTY_NOTICES.txt
 #   (res\wald-build\collect-notices.py --platform windows-x86: Sciter notice included) go into the installer payload
 #   and dist. Unsigned (D34). Needs cargo-about 0.6.4 (cargo install cargo-about --version 0.6.4 --locked).

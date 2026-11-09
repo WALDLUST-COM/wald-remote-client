@@ -20,7 +20,7 @@
 #          WALDLUST_API_SERVER = https://remote.waldpay.co.kr/rd. 비관리·ad-hoc 서명 그대로이고 현장 배포용이 아니다(저장소 이전 전 — REPO_TRANSITION).
 #          시험 기기는 운영 목록에 '미지정'으로 올라간다. 결과 이름이 localtest 가 아니라 prodtest 라 dummy·mock 시험본을 덮지 않는다.
 #   release: 정식 배포본(계획 ADMIN_LOCAL_PLAN 4-1, 결정 D33~D35 — 2026-10-14 사용자). 주소는 prodtest 와 같다.
-#          ref 는 waldlustpos(origin)에 푸시된 wald-v* 태그만 받는다(재현성 — 소스 링크가 이 태그를 가리킨다).
+#          ref 는 WALDLUST-COM(origin)에 푸시된 wald-v* 태그만 받는다(재현성 — 소스 링크가 이 태그를 가리킨다).
 #          태그 wald-v<버전>-r<N> 의 버전이 소스(pubspec·Cargo.toml) 버전과 달라도 멈춘다(D36).
 #          서명 전에 NOTICE·LICENCE·THIRD_PARTY_NOTICES-macos.txt(res/wald-build/collect-notices.py)를 앱 Resources 에 넣고
 #          dist 에도 둔다. 번들 ID co.kr.waldlust.remote·URL 스킴 waldlust 를 확인한다.
@@ -87,7 +87,7 @@ notarize() {
 
 xcodebuild -version >/dev/null 2>&1 || die "Xcode 가 선택되지 않았거나 라이선스 미동의(sudo xcode-select -s …, sudo xcodebuild -license accept)"
 
-# release: origin(waldlustpos)에 있는 wald-v* 태그이고 로컬 태그와 같은 커밋이어야 한다.
+# release: origin(WALDLUST-COM)에 있는 wald-v* 태그이고 로컬 태그와 같은 커밋이어야 한다.
 if [ "$TARGET" = release ]; then
   [[ "$BASE" =~ '^wald-v[0-9]+\.[0-9]+\.[0-9]+-r[0-9]+$' ]] || die "release 는 wald-v<버전>-r<N> 태그만 받는다(받은 값: $BASE)"
   rc=$(git -C "$R" ls-remote origin "refs/tags/$BASE^{}" | awk '{print $1}')

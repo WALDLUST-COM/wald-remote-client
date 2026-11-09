@@ -21,7 +21,7 @@
 #          Still unmanaged/unsigned - not for field deployment (before the repo transfer). The test machine shows up in the
 #          production list as unassigned. Output is named prodtest (not localtest), so dummy/mock builds are not overwritten.
 #   release: official build (plan ADMIN_LOCAL_PLAN 4-1, decisions D33-D35 - 2026-10-14). Same addresses as prodtest.
-#          -Ref must be a wald-v<ver>-r<N> tag pushed to origin (waldlustpos) whose version is the source version (D36),
+#          -Ref must be a wald-v<ver>-r<N> tag pushed to origin (WALDLUST-COM) whose version is the source version (D36),
 #          and -Inno is required. Incoming-only takes only
 #          -IncomingEnv C:\wald-build\incoming-prod.env. Before ISCC, NOTICE.txt, LICENCE.txt and THIRD_PARTY_NOTICES.txt
 #          (res\wald-build\collect-notices.py) are put into the installer payload, and copied to dist. Unsigned (D34).
