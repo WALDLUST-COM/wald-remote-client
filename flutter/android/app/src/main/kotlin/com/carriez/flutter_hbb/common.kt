@@ -206,11 +206,12 @@ fun setCodecInfo(context: Context) {
             val caps = codec.getCapabilitiesForType(mime_type)
             if (codec.isEncoder) {
                 // Encoder's max_height and max_width are interchangeable
-                // Rockchip OMX AVC 인코더(RK3568)는 1920x1088 이라고 선언하지만 MPP 는 1200x1920 패널도
+                // 1080p 로 선언한 하드웨어 인코더(예: RK3568 OMX AVC 1920x1088)도 1200x1920 패널을
                 // 인코딩한다. 막으면 소프트웨어·반 해상도가 되므로 긴 변이 선언 최대 이내면 통과시킨다.
-                val rkFits = codec.name.startsWith("OMX.rk.", true) &&
+                // 실제로 configure 가 실패하면 hwcodec 이 소프트웨어로 넘어간다(막았을 때와 같은 결과).
+                val longSideFits =
                     maxOf(w, h) <= maxOf(caps.videoCapabilities.supportedWidths.upper, caps.videoCapabilities.supportedHeights.upper)
-                if (!rkFits && !caps.videoCapabilities.isSizeSupported(w,h) && !caps.videoCapabilities.isSizeSupported(h,w)) {
+                if (!longSideFits && !caps.videoCapabilities.isSizeSupported(w,h) && !caps.videoCapabilities.isSizeSupported(h,w)) {
                     return@forEach
                 }
             }
