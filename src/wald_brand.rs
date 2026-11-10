@@ -9,9 +9,8 @@
 //! 앱 안 업데이트는 그 브랜드의 설치 파일만 받는다. 코드는 바이너리에 들어가므로 비밀이 아니다 — 인증이 아니라
 //! 범위를 좁히는 값이다. 이 저장소에는 브랜드 이름도 실제 코드도 두지 않는다(테스트는 가짜 코드를 쓴다).
 
-// build.rs(check_waldlust_brand)가 넣는다.
+// build.rs(check_waldlust_brand)가 넣는다. 접두(wald-brand-build:)는 여기 따로 적지 않는다 — 결과물에 표식이 하나만 남게.
 const MARK: &str = env!("WALDLUST_BRAND_MARK");
-const MARK_PREFIX: &str = "wald-brand-build:";
 
 /// 이 빌드의 브랜드 코드. 일반 빌드는 빈 문자열.
 pub fn code() -> &'static str {
@@ -19,9 +18,10 @@ pub fn code() -> &'static str {
     code_of(std::hint::black_box(MARK))
 }
 
+// 표식의 마지막 ':' 뒤가 코드다(일반 빌드의 none 은 코드 형식이 아니다).
 fn code_of(mark: &str) -> &str {
-    match mark.strip_prefix(MARK_PREFIX) {
-        Some(c) if is_code(c) => c,
+    match mark.rsplit_once(':') {
+        Some((_, c)) if is_code(c) => c,
         _ => "",
     }
 }
@@ -91,8 +91,9 @@ mod tests {
     // 값을 주고 돌리면 그 값이 형식에 맞아야 한다.
     #[test]
     fn test_build_mark() {
-        assert!(MARK.starts_with(MARK_PREFIX));
-        assert!(code().is_empty() || is_code(code()));
-        assert_eq!(code().is_empty(), MARK == "wald-brand-build:none");
+        let (prefix, value) = MARK.rsplit_once(':').unwrap();
+        assert_eq!(prefix, "wald-brand-build");
+        assert!(value == "none" || is_code(value));
+        assert_eq!(code().is_empty(), value == "none");
     }
 }
