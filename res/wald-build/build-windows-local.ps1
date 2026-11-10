@@ -2,7 +2,7 @@
 # Reproduces .github/workflows/wald-windows.yml (+ bridge.yml) on a Windows 11 host.
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File <wald-remote-docs>\wald-build\build-windows-local.ps1 [-Ref <commit|branch>]
-#         [-Variant bidirectional|incoming] [-Target dummy|mock|prodtest|release] [-Inno]
+#         [-Variant bidirectional|incoming] [-Target dummy|mock|prodtest|release] [-Inno] [-Brand <alias>]
 #         (default ref: waldlust, default variant: bidirectional, default target: dummy)
 # Result: C:\wald-build\waldlust-<ver>-windows-localtest[-incoming]\ (prodtest: -windows-prodtest; unsigned portable folder, run wald-remote.exe)
 #         With -Inno also C:\wald-build\dist\<ver>-<sha>-<target>\waldlust-remote[-incoming]-<ver>-windows-x64[-<target>].exe
@@ -30,6 +30,13 @@
 #   (WALDLUST_INCOMING_PASSWORD=..., WALDLUST_INCOMING_SALT=...; test values, not the production ones, outside git).
 #   They are hashed with res\wald-variant\preset_hash.py; only the hash goes into the build. Values are never printed.
 #   -IncomingEnv C:\wald-build\incoming-prod.env builds with the production shared password (same format).
+# - Brand-only build (DSK-01, decision D53): -Brand <alias> reads C:\wald-build\brand-<alias>.env (outside git):
+#     WALDLUST_BRAND=<code issued by the admin: 8-12 lowercase letters and digits>
+#     WALDLUST_INCOMING_PASSWORD=..., WALDLUST_INCOMING_SALT=...   (incoming-only: the brand's own password, required)
+#   The code goes into the build (login, heartbeat, update check); the server narrows the scope with it. Output names get
+#   -<code> (portable folder, installer, manifest-<variant>-<code>.txt with a 'brand:' line). After the build the script
+#   looks for the mark wald-brand-build:<code> in the binary (wald-brand-build:none for a general build).
+#   Without -Brand, WALDLUST_BRAND is removed from the environment - a value left in the shell cannot leak into a general build.
 # - The shared working folder is not touched: build in a fresh git worktree (wt-windows);
 #   cargo target lives outside it (target-windows) and is linked in as a junction.
 # - Short root (C:\wald-build) because LongPathsEnabled is 0 on this host (vcpkg/cmake/flutter hit MAX_PATH).
@@ -47,7 +54,9 @@ param(
   [ValidateSet('bidirectional', 'incoming')][string]$Variant = 'bidirectional',
   [ValidateSet('dummy', 'mock', 'prodtest', 'release')][string]$Target = 'dummy',
   [switch]$Inno,
-  [string]$IncomingEnv = 'C:\wald-build\incoming-test.env'  # production values: C:\wald-build\incoming-prod.env
+  [string]$IncomingEnv = 'C:\wald-build\incoming-test.env',  # production values: C:\wald-build\incoming-prod.env
+  [string]$Brand = '',      # brand-only build: alias of C:\wald-build\brand-<alias>.env
+  [string]$BrandEnv = ''    # default: <Out>\brand-<alias>.env
 )
 $Suffix = if ($Variant -eq 'incoming') { '-incoming' } else { '' }
 $Kind = if ($Target -eq 'prodtest' -or $Target -eq 'release') { $Target } else { 'localtest' }
@@ -75,7 +84,7 @@ if ($Prod) {
   $env:WALDLUST_API_SERVER = 'https://remote.waldpay.co.kr/rd'
 }
 Remove-Item Env:WALDLUST_PRESET_PASSWORD -ErrorAction SilentlyContinue
-foreach ($k in 'WALDLUST_VARIANT', 'WALDLUST_INCOMING_PW_STORAGE', 'WALDLUST_INCOMING_PW_SALT', 'WALDLUST_INCOMING_PASSWORD', 'WALDLUST_INCOMING_SALT') {
+foreach ($k in 'WALDLUST_VARIANT', 'WALDLUST_INCOMING_PW_STORAGE', 'WALDLUST_INCOMING_PW_SALT', 'WALDLUST_INCOMING_PASSWORD', 'WALDLUST_INCOMING_SALT', 'WALDLUST_BRAND') {
   Remove-Item "Env:$k" -ErrorAction SilentlyContinue
 }
 
@@ -87,6 +96,40 @@ function Run([string]$Name, [string]$Cmd) {
   if ($LASTEXITCODE -ne 0) { Die "$Name (exit $LASTEXITCODE)" }
 }
 
+# Brand-only build (DSK-01, decision D53). See the header. Values are never printed (the code is not a secret, the password is).
+$Code = ''
+if ($Brand) {
+  if ($Brand -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]*$') { Die "-Brand takes an alias made of letters, digits, - and _" }
+  if (-not $BrandEnv) { $BrandEnv = Join-Path $Out "brand-$Brand.env" }
+  if (-not (Test-Path -LiteralPath $BrandEnv)) { Die "$BrandEnv not found (WALDLUST_BRAND=<code>; incoming-only also WALDLUST_INCOMING_PASSWORD, WALDLUST_INCOMING_SALT)" }
+  $brandVals = @{}
+  foreach ($line in Get-Content -LiteralPath $BrandEnv) {
+    if ($line -match '^\s*(WALDLUST_BRAND|WALDLUST_INCOMING_PASSWORD|WALDLUST_INCOMING_SALT)=(.*)$') { $brandVals[$Matches[1]] = $Matches[2] }
+  }
+  $Code = "$($brandVals['WALDLUST_BRAND'])".Trim()
+  if ($Code -cnotmatch '^[a-z0-9]{8,12}$') { Die "${BrandEnv}: WALDLUST_BRAND must be 8-12 lowercase letters and digits" }
+  if ($Variant -eq 'incoming') {
+    # The brand's own password is required: a brand build must never fall back to the shared password files.
+    if (-not $brandVals['WALDLUST_INCOMING_PASSWORD'] -or -not $brandVals['WALDLUST_INCOMING_SALT']) {
+      Die "${BrandEnv}: WALDLUST_INCOMING_PASSWORD and WALDLUST_INCOMING_SALT are required for a brand incoming-only build"
+    }
+    foreach ($shared in 'incoming-prod.env', 'incoming-test.env') {
+      $sharedFile = Join-Path $Out $shared
+      if (Test-Path -LiteralPath $sharedFile) {
+        foreach ($line in Get-Content -LiteralPath $sharedFile) {
+          if ($line -match '^\s*WALDLUST_INCOMING_PASSWORD=(.*)$' -and $Matches[1] -ceq $brandVals['WALDLUST_INCOMING_PASSWORD']) {
+            Die "${BrandEnv}: the brand password is the same as the shared one in $shared - use a different password"
+          }
+        }
+      }
+    }
+    $IncomingEnv = $BrandEnv
+  }
+  $brandVals = $null
+  $env:WALDLUST_BRAND = $Code
+}
+$BrandTag = if ($Code) { "-$Code" } else { '' }
+
 # release: a wald-v* tag that exists on origin with the same commit, -Inno, the production password, cargo-about.
 $CargoAbout = Join-Path $env:USERPROFILE '.cargo\bin\cargo-about.exe'
 if ($Target -eq 'release') {
@@ -96,7 +139,7 @@ if ($Target -eq 'release') {
   $lc = git -C $Client rev-parse -q --verify "$Ref^{commit}"
   if (-not $rc -or $rc -ne $lc) { Die "tag $Ref is not on origin or differs from the local tag (origin '$rc', local '$lc') - git fetch --tags" }
   if (-not $Inno) { Die 'release needs -Inno' }
-  if ($Variant -eq 'incoming' -and (Split-Path -Leaf $IncomingEnv) -ne 'incoming-prod.env') { Die 'release incoming-only takes only -IncomingEnv C:\wald-build\incoming-prod.env' }
+  if ($Variant -eq 'incoming' -and -not $Code -and (Split-Path -Leaf $IncomingEnv) -ne 'incoming-prod.env') { Die 'release incoming-only takes only -IncomingEnv C:\wald-build\incoming-prod.env' }
   if (-not (Test-Path -LiteralPath $CargoAbout)) { Die 'cargo-about not found (cargo install cargo-about --version 0.6.4 --locked)' }
 }
 
@@ -110,6 +153,7 @@ if (Test-Path -LiteralPath $W) {
 }
 git -C $Client worktree add --detach $W $Ref
 if ($LASTEXITCODE -ne 0) { Die worktree }
+if ($Code -and -not (Test-Path -LiteralPath (Join-Path $W 'src\wald_brand.rs'))) { Die "$Ref has no brand build support (src\wald_brand.rs)" }
 if ($Target -eq 'release') {
   # The tag version (wald-v<ver>-r<N>) must be the source version (decision D36).
   $tagVer = ($Ref -replace '^wald-v', '') -replace '-r\d+$', ''
@@ -178,7 +222,7 @@ Run build "cd /d `"$W`" && python build.py --portable --flutter --skip-portable-
 Step copy
 $ver = ((Select-String -Path (Join-Path $W 'flutter\pubspec.yaml') -Pattern '^version:').Line -split '\s+')[1].Split('+')[0]
 $src = Join-Path $W 'flutter\build\windows\x64\runner\Release'
-$dest = Join-Path $Out "waldlust-$ver-windows-$Kind$Suffix"
+$dest = Join-Path $Out "waldlust-$ver-windows-$Kind$Suffix$BrandTag"
 if (-not (Test-Path -LiteralPath (Join-Path $src 'wald-remote.exe'))) { Die "wald-remote.exe not found in $src" }
 if (Test-Path -LiteralPath $dest) { Remove-Item -Recurse -Force -LiteralPath $dest }
 Copy-Item -Recurse -LiteralPath $src -Destination $dest
@@ -189,12 +233,19 @@ Step verify
 $hbNeedle = $env:WALDLUST_HEARTBEAT_URL -replace '^https?://', ''
 $apiNeedle = '-'
 if ($env:WALDLUST_API_SERVER) { $apiNeedle = $env:WALDLUST_API_SERVER.Trim().TrimEnd('/') -replace '^https?://', '' }
-$counts = python -c "import sys;d=open(sys.argv[1],'rb').read();print(*[d.count(x.encode()) if x != '-' else -1 for x in sys.argv[2:]])" (Join-Path $dest 'librustdesk.dll') $hbNeedle 'remote.waldpay.co.kr/api/heartbeat' $apiNeedle
-$hb, $prod, $api = $counts -split ' ' | ForEach-Object { [int]$_ }
-$Check = "heartbeat $hbNeedle=$hb production=$prod / api-server $apiNeedle=$api"
+# Brand mark (DSK-01, decision D53): the binary must carry wald-brand-build:<code> for a brand build and
+# wald-brand-build:none for a general one. Refs older than the brand support have no mark (general builds only).
+$markNeedle = '-'
+if (Test-Path -LiteralPath (Join-Path $W 'src\wald_brand.rs')) {
+  $markNeedle = if ($Code) { "wald-brand-build:$Code" } else { 'wald-brand-build:none' }
+}
+$counts = python -c "import sys;d=open(sys.argv[1],'rb').read();print(*[d.count(x.encode()) if x != '-' else -1 for x in sys.argv[2:]])" (Join-Path $dest 'librustdesk.dll') $hbNeedle 'remote.waldpay.co.kr/api/heartbeat' $apiNeedle $markNeedle
+$hb, $prod, $api, $mark = $counts -split ' ' | ForEach-Object { [int]$_ }
+$Check = "heartbeat $hbNeedle=$hb production=$prod / api-server $apiNeedle=$api / brand $markNeedle=$mark"
 Write-Output $Check
 if ($hb -lt 1 -or ($prod -ne 0 -and -not $Prod)) { Die "heartbeat address check failed - do not run this build" }
 if ($apiNeedle -ne '-' -and $api -lt 1) { Die "api-server value is not in the build - do not run this build" }
+if ($markNeedle -ne '-' -and $mark -lt 1) { Die "brand mark check failed ($markNeedle is not in the build) - do not run this build" }
 Write-Output "done: $dest\wald-remote.exe"
 
 # 6) Optional Inno installer (wald-windows-inno.yml 'Package with Inno Setup'). Same AppId for both variants.
@@ -228,7 +279,7 @@ if ($Inno) {
   $dist = Join-Path $Out "dist\$ver-$($commit.Substring(0, 9))-$Target"
   New-Item -ItemType Directory -Force $dist | Out-Null
   $tsuf = if ($Target -eq 'release') { '' } else { "-$Target" }
-  $installer = Join-Path $dist "waldlust-remote$Suffix-$ver-windows-x64$tsuf.exe"
+  $installer = Join-Path $dist "waldlust-remote$Suffix$BrandTag-$ver-windows-x64$tsuf.exe"
   Copy-Item -LiteralPath $setup.FullName -Destination $installer -Force
   $file = Get-Item -LiteralPath $installer
   $apiText = if ($env:WALDLUST_API_SERVER) { $env:WALDLUST_API_SERVER } else { '(none - account features disabled)' }
@@ -242,13 +293,14 @@ if ($Inno) {
     "signature: unsigned"
   )
   if ($Variant -eq 'incoming') { $manifest += "incoming password fingerprint: $Fp" }
+  if ($Code) { $manifest += "brand: $Code" }
   $manifest += @(
     "installer: $($file.Name)",
     "size: $($file.Length)",
     "sha256: $((Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLower())",
     "built: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
   )
-  [System.IO.File]::WriteAllLines((Join-Path $dist "manifest-$Variant.txt"), $manifest, (New-Object System.Text.UTF8Encoding $false))
+  [System.IO.File]::WriteAllLines((Join-Path $dist "manifest-$Variant$BrandTag.txt"), $manifest, (New-Object System.Text.UTF8Encoding $false))
   if ($Target -eq 'release') {
     Copy-Item -LiteralPath (Join-Path $W 'NOTICE') -Destination (Join-Path $dist 'NOTICE.txt') -Force
     Copy-Item -LiteralPath (Join-Path $W 'LICENCE') -Destination (Join-Path $dist 'LICENCE.txt') -Force

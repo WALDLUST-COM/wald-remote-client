@@ -7,6 +7,12 @@
 # 결과:  ~/wald-build/waldlust-<버전>-android-localtest[-incoming|-mobile].apk(prodtest 는 -android-prodtest), 로그는 ~/wald-build/logs/
 #        + ~/wald-build/dist/<버전>-<sha9>-<대상>/waldlust-remote[-incoming|-mobile]-<버전>-android[-<대상>].apk 와 manifest-android-<변형>.txt
 #        (설치 파일 이름 규칙 — 결정 D36: release 는 '-<대상>' 을 붙이지 않는다. 예 waldlust-remote-incoming-1.5.0-android.apk)
+#        브랜드 전용 빌드(DSK-01, 결정 D53): 어느 자리에든 --brand <별칭>. ~/wald-build/brand-<별칭>.env(저장소 밖, 600)에서
+#        WALDLUST_BRAND=<코드> 를 읽고, 수신 전용이면 그 파일의 브랜드 비밀번호·솔트를 쓴다(없으면 멈춘다 — 공통 비밀번호 파일로
+#        떨어지지 않는다. 공통 비밀번호와 같은 값이어도 멈춘다. set-incoming-password.sh --brand <별칭> 이 만든다).
+#        메인 APK 이름에 -<코드> 가 붙고(waldlust-remote[-incoming]-<코드>-<버전>-android…), manifest-android-<변형>-<코드>.txt 에
+#        brand: 줄이 들어간다. 도우미·입력 플러그인은 브랜드와 무관해 이름이 그대로다. 빌드 뒤 ABI 마다 표식
+#        wald-brand-build:<코드>(일반 빌드는 …:none)를 확인한다. --brand 가 없으면 WALDLUST_BRAND 를 지운다.
 #        수신 전용이면 도우미 앱(wald-helper — 부록 A-44, 결정 D39·D40)도 같은 버전·같은 서명으로 먼저 만들어 메인 APK 의
 #        assets/wald-helper.apk 로 넣고(앱이 설치한다 — D40), 따로도 남긴다:
 #        dist 의 waldlust-remote-helper-<버전>-android[-<대상>].apk 와 manifest-android-helper.txt. wald-helper 가 없는 옛 ref 는 건너뛴다.
@@ -57,6 +63,16 @@
 #   JDK 17(brew openjdk@17), Xcode Command Line Tools, brew: nasm pkgconf autoconf automake libtool
 #   xcode-select 가 Xcode.app 이어도 된다: 브리지(ffigen, CLT libclang)가 CLT SDK 를 쓰도록 DEVELOPER_DIR 기본값을 CLT 로 둔다.
 set -u
+# --brand <별칭> 을 먼저 떼어 낸다. 나머지는 자리 인자 그대로다.
+BRAND=""; ARGS=()
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --brand) [ $# -ge 2 ] || { echo "FAIL: --brand 뒤에 별칭이 없다"; exit 1; }; BRAND="$2"; shift 2 ;;
+    --brand=*) BRAND="${1#--brand=}"; shift ;;
+    *) ARGS+=("$1"); shift ;;
+  esac
+done
+set -- "${ARGS[@]}"
 R=/Users/kimsungchun/Documents/GitHub/wald-remote-client
 OUT="$HOME/wald-build"
 W="$OUT/wt-android"
@@ -93,7 +109,7 @@ if [ -n "$PROD" ]; then
   export WALDLUST_HEARTBEAT_URL="https://remote.waldpay.co.kr/api/heartbeat"
   export WALDLUST_API_SERVER="https://remote.waldpay.co.kr/rd"
 fi
-unset WALDLUST_PRESET_PASSWORD WALDLUST_VARIANT WALDLUST_INCOMING_PW_STORAGE WALDLUST_INCOMING_PW_SALT
+unset WALDLUST_PRESET_PASSWORD WALDLUST_VARIANT WALDLUST_INCOMING_PW_STORAGE WALDLUST_INCOMING_PW_SALT WALDLUST_BRAND
 [ "${WALD_TEST_MANAGED:-}" = 1 ] && export WALDLUST_PRESET_PASSWORD=local-test-marker
 [ "$VARIANT" = outgoing ] && export WALDLUST_VARIANT=outgoing   # build.rs·wald_variant.rs·app/build.gradle 이 읽는다
 # macOS: bindgen(kcp-sys, scrap 등)이 Android 헤더를 찾도록 NDK sysroot 를 준다. Linux CI 는 호스트 /usr/include 로 넘어간다.
@@ -104,6 +120,29 @@ export BINDGEN_EXTRA_CLANG_ARGS_armv7_linux_androideabi="--sysroot=$NDKSYS"
 
 step() { echo "== $1 $(date +%T)"; }
 die() { echo "FAIL: $1 (로그: $LOG)"; exit 1; }
+
+# 브랜드 전용 빌드(DSK-01, 결정 D53). 머리 주석 참고. 코드는 비밀이 아니고, 비밀번호는 읽어서 견주기만 한다(찍지 않는다).
+CODE=""
+if [ -n "$BRAND" ]; then
+  print -r -- "$BRAND" | LC_ALL=C grep -Eqx '[A-Za-z0-9][A-Za-z0-9_-]*' || die "--brand 별칭은 영문·숫자·-·_ 만 쓴다"
+  BRAND_ENV="${WALD_BRAND_ENV:-$OUT/brand-$BRAND.env}"
+  [ -f "$BRAND_ENV" ] || die "$BRAND_ENV 이 없다(WALDLUST_BRAND=<코드>, 수신 전용이면 브랜드 비밀번호·솔트도)"
+  CODE=$(sed -n 's/^[[:space:]]*WALDLUST_BRAND=//p' "$BRAND_ENV" | tail -1 | tr -d '[:space:]')
+  print -r -- "$CODE" | LC_ALL=C grep -Eqx '[a-z0-9]{8,12}' || die "$BRAND_ENV: WALDLUST_BRAND 는 소문자·숫자 8~12자여야 한다"
+  if [ "$VARIANT" = incoming ]; then
+    bpw=$(sed -n 's/^WALDLUST_INCOMING_PASSWORD=//p' "$BRAND_ENV" | tail -1)
+    bsalt=$(sed -n 's/^WALDLUST_INCOMING_SALT=//p' "$BRAND_ENV" | tail -1)
+    [ -n "$bpw" ] && [ -n "$bsalt" ] || die "$BRAND_ENV: 브랜드 수신 전용 빌드에는 WALDLUST_INCOMING_PASSWORD·WALDLUST_INCOMING_SALT 가 있어야 한다(set-incoming-password.sh --brand $BRAND)"
+    for shared in incoming-prod.env incoming-test.env; do
+      [ -f "$OUT/$shared" ] || continue
+      [ "$(sed -n 's/^WALDLUST_INCOMING_PASSWORD=//p' "$OUT/$shared" | tail -1)" != "$bpw" ] || die "$BRAND_ENV: 브랜드 비밀번호가 공통 비밀번호($shared)와 같다 — 다른 비밀번호를 쓴다"
+    done
+    unset bpw bsalt
+    WALD_INCOMING_ENV="$BRAND_ENV"   # 아래 '수신 전용' 단계가 이 파일을 읽는다(공통 비밀번호 파일로 떨어지지 않는다)
+  fi
+  export WALDLUST_BRAND="$CODE"
+fi
+BTAG=""; [ -n "$CODE" ] && BTAG="-$CODE"
 
 # release: origin(WALDLUST-COM)에 있는 wald-v* 태그·릴리즈 키·versionCode·운영 비밀번호를 빌드 전에 확인한다.
 if [ "$TARGET" = release ]; then
@@ -126,7 +165,7 @@ if [ "$TARGET" = release ]; then
   [ -z "${WALD_VERSION_CODE:-}" ] || [ "$WALD_VERSION_CODE" = "$VCODE" ] || die "WALD_VERSION_CODE($WALD_VERSION_CODE)가 태그에서 계산한 값($VCODE)과 다르다 — 빼고 돌린다"
   [ "$VCODE" -ge 2100 ] || die "versionCode $VCODE 는 2100 이상이어야 한다(옛 현장 설치본 2066)"
   echo "versionCode $VCODE ($BASE)"
-  [ "$VARIANT" != incoming ] || [ "${${WALD_INCOMING_ENV:-}:t}" = incoming-prod.env ] || die "release 수신 전용은 WALD_INCOMING_ENV=$OUT/incoming-prod.env 만 받는다"
+  [ "$VARIANT" != incoming ] || [ -n "$CODE" ] || [ "${${WALD_INCOMING_ENV:-}:t}" = incoming-prod.env ] || die "release 수신 전용은 WALD_INCOMING_ENV=$OUT/incoming-prod.env 만 받는다"
   [ -x "$HOME/.cargo/bin/cargo-about" ] || die "cargo-about 이 없다(cargo install cargo-about --version 0.6.4 --locked)"
 fi
 
@@ -145,6 +184,7 @@ if [ "$TARGET" = release ]; then
   CARGO_VER=$(grep -m1 -E '^version *=' Cargo.toml | cut -d'"' -f2)
   [ "$TAG_VER" = "$SRC_VER" ] && [ "$TAG_VER" = "$CARGO_VER" ] || die "태그 버전($TAG_VER)과 소스 버전(pubspec $SRC_VER, Cargo.toml $CARGO_VER)이 다르다"
 fi
+[ -z "$CODE" ] || [ -f src/wald_brand.rs ] || die "$BASE 에는 브랜드 빌드 지원이 없다(src/wald_brand.rs)"
 [ "$VARIANT" != outgoing ] || [ -f res/wald-variant/outgoing.json ] || die "$BASE 에 발신 전용 변형(res/wald-variant/outgoing.json)이 없다"
 
 # 수신 전용: 테스트 비밀번호를 해시로 바꿔 넣는다(평문은 하위 셸에만 있고 빌드 환경에는 들어가지 않는다).
@@ -297,7 +337,7 @@ echo "org.gradle.java.home=$JAVA_HOME" >> flutter/android/gradle.properties
 ) > "$LOG/apk.log" 2>&1 || die apk
 rm -f flutter/android/key.properties   # release 에서 복사한 키 설정(그 밖 대상에는 없다)
 VER=$(grep -E '^version:' flutter/pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
-APK="$OUT/waldlust-$VER-android-$KIND$SUFFIX.apk"
+APK="$OUT/waldlust-$VER-android-$KIND$SUFFIX$BTAG.apk"
 cp flutter/build/app/outputs/flutter-apk/app-release.apk "$APK" || die "APK 복사"
 
 
@@ -310,18 +350,21 @@ SIGNER=$("$BT/apksigner" verify --print-certs "$APK" | grep -E "Signer #1 certif
 echo "Signer #1 certificate SHA-256: $SIGNER"
 HB_NEEDLE="${WALDLUST_HEARTBEAT_URL#*://}"
 API_URL="${WALDLUST_API_SERVER:-}"; API_URL="${API_URL%/}"; API_NEEDLE="${API_URL#*://}"
+# 브랜드 표식(결정 D53): 브랜드 빌드는 wald-brand-build:<코드>, 일반 빌드는 …:none. 브랜드 지원 전의 기준에는 표식이 없다.
+MARK_NEEDLE=""; [ -f src/wald_brand.rs ] && MARK_NEEDLE="wald-brand-build:${CODE:-none}"
 CHECK=""; BAD=""
 for abi in arm64-v8a armeabi-v7a; do
   unzip -p "$APK" "lib/$abi/librustdesk.so" > "$LOG/check.so"
   hb=$(strings -a "$LOG/check.so" | grep -cF "$HB_NEEDLE")
   prod=$(strings -a "$LOG/check.so" | grep -c 'remote.waldpay.co.kr/api/heartbeat')
   api=-1; [ -n "$API_NEEDLE" ] && api=$(strings -a "$LOG/check.so" | grep -cF "$API_NEEDLE")
-  line="$abi heartbeat $HB_NEEDLE=$hb production=$prod / api-server ${API_NEEDLE:--}=$api"
+  mark=-1; [ -n "$MARK_NEEDLE" ] && mark=$(strings -a "$LOG/check.so" | grep -cF "$MARK_NEEDLE")
+  line="$abi heartbeat $HB_NEEDLE=$hb production=$prod / api-server ${API_NEEDLE:--}=$api / brand ${MARK_NEEDLE:--}=$mark"
   echo "$line"; CHECK="${CHECK:+$CHECK; }$line"
-  { [ "$hb" -ge 1 ] && { [ "$prod" -eq 0 ] || [ -n "$PROD" ]; } && { [ -z "$API_NEEDLE" ] || [ "$api" -ge 1 ]; }; } || BAD=1
+  { [ "$hb" -ge 1 ] && { [ "$prod" -eq 0 ] || [ -n "$PROD" ]; } && { [ -z "$API_NEEDLE" ] || [ "$api" -ge 1 ]; } && { [ -z "$MARK_NEEDLE" ] || [ "$mark" -ge 1 ]; }; } || BAD=1
 done
 rm -f "$LOG/check.so"
-[ -z "$BAD" ] || die "heartbeat·API 주소 확인 실패 — 이 APK 는 설치하지 않는다"
+[ -z "$BAD" ] || die "heartbeat·API 주소·브랜드 표식 확인 실패 — 이 APK 는 설치하지 않는다"
 # 모바일(발신 전용, DSK-12): targetSdk 34, 피제어 권한·구성요소 없음(build-android-local.ps1 과 같은 목록).
 if [ "$VARIANT" = outgoing ]; then
   echo "$BADGING" | grep -q "^targetSdkVersion:'34'" || die "발신 전용 APK 의 targetSdk 가 34 가 아니다"
@@ -385,13 +428,14 @@ step dist
 COMMIT=$(git rev-parse HEAD)
 DIST="$OUT/dist/$VER-${COMMIT[1,9]}-$TARGET"
 mkdir -p "$DIST"
-DAPK="$DIST/waldlust-remote$SUFFIX-$VER-android$TSUF.apk"
+DAPK="$DIST/waldlust-remote$SUFFIX$BTAG-$VER-android$TSUF.apk"
 cp "$APK" "$DAPK" || die "dist 복사"
 {
   echo "ref: $BASE ($COMMIT)"
   echo "platform: android (arm64-v8a, armeabi-v7a)"
   echo "variant: $VARIANT"
   echo "target: $TARGET"
+  [ -n "$CODE" ] && echo "brand: $CODE"
   echo "api-server: ${WALDLUST_API_SERVER:-(none - account features disabled)}"
   echo "heartbeat: $WALDLUST_HEARTBEAT_URL"
   echo "check: $CHECK"
@@ -405,7 +449,7 @@ cp "$APK" "$DAPK" || die "dist 복사"
   echo "size: $(stat -f %z "$DAPK")"
   echo "sha256: $(shasum -a 256 "$DAPK" | awk '{print $1}')"
   echo "built: $(date '+%Y-%m-%d %H:%M:%S')"
-} > "$DIST/manifest-android-$VARIANT.txt"
+} > "$DIST/manifest-android-$VARIANT$BTAG.txt"
 if [ -n "$HAPK" ]; then
   HDAPK="$DIST/waldlust-remote-helper-$VER-android$TSUF.apk"
   cp "$HAPK" "$HDAPK" || die "dist 도우미 복사"

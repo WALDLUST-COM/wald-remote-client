@@ -3,7 +3,7 @@
 # Spec DSK-07 '32-bit Windows (Sciter) incoming-only', appendix A-19. The 32-bit target is incoming-only (F-50).
 #
 # Usage:  powershell -ExecutionPolicy Bypass -File <wald-remote-docs>\wald-build\build-windows-sciter.ps1 [-Ref <commit|branch>]
-#         [-Variant incoming|bidirectional] [-Target dummy|mock|release] [-Inno]
+#         [-Variant incoming|bidirectional] [-Target dummy|mock|release] [-Inno] [-Brand <alias>]
 #         (default ref: feat/dsk-07-win32-sciter, default variant: incoming, default target: mock)
 # Result: C:\wald-build\waldlust-<ver>-windows-x86-sciter[-incoming]-<target>\ (wald-remote.exe + sciter.dll, unsigned)
 #         With -Inno also C:\wald-build\dist\<ver>-<sha>-<target>\waldlust-remote[-incoming]-<ver>-windows-x86[-<target>].exe + manifest
@@ -21,6 +21,13 @@
 #   and dist. Unsigned (D34). Needs cargo-about 0.6.4 (cargo install cargo-about --version 0.6.4 --locked).
 # - Incoming-only: test password from C:\wald-build\incoming-test.env is hashed with preset_hash.py; only the hash goes in.
 #   The binary is checked: hash present, plain password absent. Values are never printed (fingerprint only).
+# - Brand-only build (DSK-01, decision D53): -Brand <alias> reads C:\wald-build\brand-<alias>.env (outside git):
+#     WALDLUST_BRAND=<code issued by the admin: 8-12 lowercase letters and digits>
+#     WALDLUST_INCOMING_PASSWORD=..., WALDLUST_INCOMING_SALT=...   (incoming-only: the brand's own password, required)
+#   The code goes into the build (login, heartbeat, update check); the server narrows the scope with it. Output names get
+#   -<code> (portable folder, installer, manifest-<variant>-<code>.txt with a 'brand:' line). After the build the script
+#   looks for the mark wald-brand-build:<code> in the binary (wald-brand-build:none for a general build).
+#   Without -Brand, WALDLUST_BRAND is removed from the environment - a value left in the shell cannot leak into a general build.
 # - Fresh detached worktree wt-sciter-build; cargo target C:\wald-build\target-sciter-x86 (outside the worktree).
 #   The sciter-rs switch to branch dyn_x86 (Cargo.toml/Cargo.lock) happens only in that worktree, never committed.
 #
@@ -37,7 +44,9 @@ param(
   [ValidateSet('bidirectional', 'incoming')][string]$Variant = 'incoming',
   [ValidateSet('dummy', 'mock', 'release')][string]$Target = 'mock',
   [switch]$Inno,
-  [string]$IncomingEnv = 'C:\wald-build\incoming-test.env'
+  [string]$IncomingEnv = 'C:\wald-build\incoming-test.env',
+  [string]$Brand = '',      # brand-only build: alias of C:\wald-build\brand-<alias>.env
+  [string]$BrandEnv = ''    # default: <Out>\brand-<alias>.env
 )
 $Suffix = if ($Variant -eq 'incoming') { '-incoming' } else { '' }
 $Prod = ($Target -eq 'release')  # built against the production server
@@ -71,7 +80,7 @@ if ($Prod) {
   $env:WALDLUST_API_SERVER = 'https://remote.waldpay.co.kr/rd'
 }
 Remove-Item Env:WALDLUST_PRESET_PASSWORD -ErrorAction SilentlyContinue
-foreach ($k in 'WALDLUST_VARIANT', 'WALDLUST_INCOMING_PW_STORAGE', 'WALDLUST_INCOMING_PW_SALT', 'WALDLUST_INCOMING_PASSWORD', 'WALDLUST_INCOMING_SALT') {
+foreach ($k in 'WALDLUST_VARIANT', 'WALDLUST_INCOMING_PW_STORAGE', 'WALDLUST_INCOMING_PW_SALT', 'WALDLUST_INCOMING_PASSWORD', 'WALDLUST_INCOMING_SALT', 'WALDLUST_BRAND') {
   Remove-Item "Env:$k" -ErrorAction SilentlyContinue
 }
 
@@ -87,6 +96,40 @@ foreach ($p in "$Tools\llvm-x86\bin\libclang.dll", (Join-Path $env:VCPKG_ROOT 'i
 }
 if ((Get-FileHash -Algorithm SHA256 -LiteralPath $SciterDll).Hash.ToLower() -ne $SciterSha) { Die "unexpected $SciterDll" }
 # release: a wald-v* tag that exists on origin with the same commit, -Inno, incoming-only, the production password, cargo-about.
+# Brand-only build (DSK-01, decision D53). See the header. Values are never printed (the code is not a secret, the password is).
+$Code = ''
+if ($Brand) {
+  if ($Brand -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]*$') { Die "-Brand takes an alias made of letters, digits, - and _" }
+  if (-not $BrandEnv) { $BrandEnv = Join-Path $Out "brand-$Brand.env" }
+  if (-not (Test-Path -LiteralPath $BrandEnv)) { Die "$BrandEnv not found (WALDLUST_BRAND=<code>; incoming-only also WALDLUST_INCOMING_PASSWORD, WALDLUST_INCOMING_SALT)" }
+  $brandVals = @{}
+  foreach ($line in Get-Content -LiteralPath $BrandEnv) {
+    if ($line -match '^\s*(WALDLUST_BRAND|WALDLUST_INCOMING_PASSWORD|WALDLUST_INCOMING_SALT)=(.*)$') { $brandVals[$Matches[1]] = $Matches[2] }
+  }
+  $Code = "$($brandVals['WALDLUST_BRAND'])".Trim()
+  if ($Code -cnotmatch '^[a-z0-9]{8,12}$') { Die "${BrandEnv}: WALDLUST_BRAND must be 8-12 lowercase letters and digits" }
+  if ($Variant -eq 'incoming') {
+    # The brand's own password is required: a brand build must never fall back to the shared password files.
+    if (-not $brandVals['WALDLUST_INCOMING_PASSWORD'] -or -not $brandVals['WALDLUST_INCOMING_SALT']) {
+      Die "${BrandEnv}: WALDLUST_INCOMING_PASSWORD and WALDLUST_INCOMING_SALT are required for a brand incoming-only build"
+    }
+    foreach ($shared in 'incoming-prod.env', 'incoming-test.env') {
+      $sharedFile = Join-Path $Out $shared
+      if (Test-Path -LiteralPath $sharedFile) {
+        foreach ($line in Get-Content -LiteralPath $sharedFile) {
+          if ($line -match '^\s*WALDLUST_INCOMING_PASSWORD=(.*)$' -and $Matches[1] -ceq $brandVals['WALDLUST_INCOMING_PASSWORD']) {
+            Die "${BrandEnv}: the brand password is the same as the shared one in $shared - use a different password"
+          }
+        }
+      }
+    }
+    $IncomingEnv = $BrandEnv
+  }
+  $brandVals = $null
+  $env:WALDLUST_BRAND = $Code
+}
+$BrandTag = if ($Code) { "-$Code" } else { '' }
+
 $CargoAbout = Join-Path $env:USERPROFILE '.cargo\bin\cargo-about.exe'
 if ($Target -eq 'release') {
   if ($Ref -notmatch '^wald-v\d+\.\d+\.\d+-r\d+$') { Die "release takes only a wald-v<ver>-r<N> tag (got $Ref)" }
@@ -96,7 +139,7 @@ if ($Target -eq 'release') {
   if (-not $rc -or $rc -ne $lc) { Die "tag $Ref is not on origin or differs from the local tag (origin '$rc', local '$lc') - git fetch --tags" }
   if (-not $Inno) { Die 'release needs -Inno' }
   if ($Variant -ne 'incoming') { Die 'the 32-bit release is incoming-only (F-50)' }
-  if ((Split-Path -Leaf $IncomingEnv) -ne 'incoming-prod.env') { Die 'release takes only -IncomingEnv C:\wald-build\incoming-prod.env' }
+  if (-not $Code -and (Split-Path -Leaf $IncomingEnv) -ne 'incoming-prod.env') { Die 'release takes only -IncomingEnv C:\wald-build\incoming-prod.env' }
   if (-not (Test-Path -LiteralPath $CargoAbout)) { Die 'cargo-about not found (cargo install cargo-about --version 0.6.4 --locked)' }
 }
 
@@ -108,6 +151,7 @@ if (Test-Path -LiteralPath $W) {
 }
 git -C $Client worktree add --detach $W $Ref
 if ($LASTEXITCODE -ne 0) { Die worktree }
+if ($Code -and -not (Test-Path -LiteralPath (Join-Path $W 'src\wald_brand.rs'))) { Die "$Ref has no brand build support (src\wald_brand.rs)" }
 if ($Target -eq 'release') {
   # The tag version (wald-v<ver>-r<N>) must be the source version (decision D36).
   $tagVer = ($Ref -replace '^wald-v', '') -replace '-r\d+$', ''
@@ -178,15 +222,22 @@ if ($env:WALDLUST_API_SERVER) { $apiNeedle = $env:WALDLUST_API_SERVER.Trim().Tri
 # The hash and the plain password go to python through the environment, never on a command line.
 $env:WALD_NEEDLE_HASH = if ($env:WALDLUST_INCOMING_PW_STORAGE) { $env:WALDLUST_INCOMING_PW_STORAGE } else { '-' }
 $env:WALD_NEEDLE_PLAIN = if ($Plain) { $Plain } else { '-' }
-$counts = python -c "import os,sys;d=open(sys.argv[1],'rb').read();n=sys.argv[2:]+[os.environ['WALD_NEEDLE_HASH'],os.environ['WALD_NEEDLE_PLAIN']];print(*[d.count(x.encode()) if x != '-' else -1 for x in n])" $exe $hbNeedle 'remote.waldpay.co.kr/api/heartbeat' $apiNeedle
+# Brand mark (DSK-01, decision D53): the binary must carry wald-brand-build:<code> for a brand build and
+# wald-brand-build:none for a general one. Refs older than the brand support have no mark (general builds only).
+$markNeedle = '-'
+if (Test-Path -LiteralPath (Join-Path $W 'src\wald_brand.rs')) {
+  $markNeedle = if ($Code) { "wald-brand-build:$Code" } else { 'wald-brand-build:none' }
+}
+$counts = python -c "import os,sys;d=open(sys.argv[1],'rb').read();n=sys.argv[2:]+[os.environ['WALD_NEEDLE_HASH'],os.environ['WALD_NEEDLE_PLAIN']];print(*[d.count(x.encode()) if x != '-' else -1 for x in n])" $exe $hbNeedle 'remote.waldpay.co.kr/api/heartbeat' $apiNeedle $markNeedle
 Remove-Item Env:WALD_NEEDLE_HASH, Env:WALD_NEEDLE_PLAIN -ErrorAction SilentlyContinue
 $Plain = $null
-$hb, $prod, $api, $hash, $plainCount = $counts -split ' ' | ForEach-Object { [int]$_ }
-$Check = "pe i386 / heartbeat $hbNeedle=$hb production=$prod / api-server $apiNeedle=$api"
+$hb, $prod, $api, $mark, $hash, $plainCount = $counts -split ' ' | ForEach-Object { [int]$_ }
+$Check = "pe i386 / heartbeat $hbNeedle=$hb production=$prod / api-server $apiNeedle=$api / brand $markNeedle=$mark"
 if ($Variant -eq 'incoming') { $Check += " / incoming hash=$hash plain=$plainCount" }
 Write-Output $Check
 if ($hb -lt 1 -or ($prod -ne 0 -and -not $Prod)) { Die "heartbeat address check failed - do not run this build" }
 if ($apiNeedle -ne '-' -and $api -lt 1) { Die "api-server value is not in the build - do not run this build" }
+if ($markNeedle -ne '-' -and $mark -lt 1) { Die "brand mark check failed ($markNeedle is not in the build) - do not run this build" }
 if ($Variant -eq 'incoming' -and ($hash -lt 1 -or $plainCount -ne 0)) { Die "incoming password check failed (hash $hash, plain $plainCount) - do not run this build" }
 $vi = (Get-Item -LiteralPath $exe).VersionInfo
 Write-Output "version info: ProductName='$($vi.ProductName)' FileDescription='$($vi.FileDescription)' FileVersion='$($vi.FileVersion)'"
@@ -194,7 +245,7 @@ Write-Output "version info: ProductName='$($vi.ProductName)' FileDescription='$(
 # 4) Portable folder: wald-remote.exe (the Inno script renames it to Waldlust.exe) + sciter.dll.
 Step copy
 $ver = ((Select-String -Path (Join-Path $W 'Cargo.toml') -Pattern '^version\s*=' | Select-Object -First 1).Line -split '"')[1]
-$dest = Join-Path $Out "waldlust-$ver-windows-x86-sciter$Suffix-$Target"
+$dest = Join-Path $Out "waldlust-$ver-windows-x86-sciter$Suffix$BrandTag-$Target"
 if (Test-Path -LiteralPath $dest) { Remove-Item -Recurse -Force -LiteralPath $dest }
 New-Item -ItemType Directory -Force $dest | Out-Null
 Copy-Item -LiteralPath $exe -Destination (Join-Path $dest 'wald-remote.exe')
@@ -230,7 +281,7 @@ if ($Inno) {
   New-Item -ItemType Directory -Force $dist | Out-Null
   # D36 name (whatever the tag's .iss called it); test installers keep the target in the name.
   $tsuf = if ($Target -eq 'release') { '' } else { "-$Target" }
-  $installer = Join-Path $dist "waldlust-remote$Suffix-$ver-windows-x86$tsuf.exe"
+  $installer = Join-Path $dist "waldlust-remote$Suffix$BrandTag-$ver-windows-x86$tsuf.exe"
   Copy-Item -LiteralPath $setup.FullName -Destination $installer -Force
   $file = Get-Item -LiteralPath $installer
   $apiText = if ($env:WALDLUST_API_SERVER) { $env:WALDLUST_API_SERVER } else { '(none - account features disabled)' }
@@ -245,13 +296,14 @@ if ($Inno) {
     "signature: unsigned"
   )
   if ($Variant -eq 'incoming') { $manifest += "incoming password fingerprint: $Fp" }
+  if ($Code) { $manifest += "brand: $Code" }
   $manifest += @(
     "installer: $($file.Name)",
     "size: $($file.Length)",
     "sha256: $((Get-FileHash -Algorithm SHA256 -LiteralPath $installer).Hash.ToLower())",
     "built: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')"
   )
-  [System.IO.File]::WriteAllLines((Join-Path $dist "manifest-x86-$Variant.txt"), $manifest, (New-Object System.Text.UTF8Encoding $false))
+  [System.IO.File]::WriteAllLines((Join-Path $dist "manifest-x86-$Variant$BrandTag.txt"), $manifest, (New-Object System.Text.UTF8Encoding $false))
   if ($Target -eq 'release') {
     Copy-Item -LiteralPath (Join-Path $W 'NOTICE') -Destination (Join-Path $dist 'NOTICE.txt') -Force
     Copy-Item -LiteralPath (Join-Path $W 'LICENCE') -Destination (Join-Path $dist 'LICENCE.txt') -Force
