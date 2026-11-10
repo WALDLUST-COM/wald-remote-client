@@ -244,12 +244,18 @@ fn check() {
 
 fn fetch_latest() -> Result<Option<Latest>, String> {
     let origin = origin().ok_or("no admin origin")?;
-    let url = format!(
+    let mut url = format!(
         "{origin}/api/app/latest?os={}&variant={}&arch={}",
         std::env::consts::OS,
         crate::wald_variant::name(),
         std::env::consts::ARCH
     );
+    // 브랜드 전용 빌드(DSK-01, 결정 D53)는 그 브랜드의 설치 파일만 받는다 — 코드를 실어 묻는다.
+    let brand = crate::wald_brand::code();
+    if !brand.is_empty() {
+        url.push_str("&brand=");
+        url.push_str(brand);
+    }
     let client = reqwest::blocking::Client::builder()
         .timeout(Duration::from_secs(15))
         .build()
@@ -263,6 +269,12 @@ fn fetch_latest() -> Result<Option<Latest>, String> {
     let Some(version) = v["version"].as_str().filter(|x| !x.is_empty()) else {
         return Ok(None);
     };
+    // 응답이 이 빌드의 브랜드 것이 아니면 새 버전이 없는 것으로 본다(src/wald_brand.rs response_matches) —
+    // 다른 브랜드나 일반 설치 파일로 덮어 설치하면 접속 비밀번호와 로그인 범위가 바뀐다.
+    if !crate::wald_brand::response_matches(brand, v["brand"].as_str()) {
+        log::warn!("wald update: the latest info is for another build, ignored");
+        return Ok(None);
+    }
     // 어드민이 주는 경로는 같은 서버 안('/'로 시작)만 쓴다.
     let path = |k: &str, default: &str| {
         let p = v[k].as_str().filter(|p| p.starts_with('/')).unwrap_or(default);

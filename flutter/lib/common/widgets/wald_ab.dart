@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
+import 'package:flutter_hbb/common/wald_brand.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
 import 'package:flutter_hbb/desktop/widgets/popup_menu.dart';
@@ -357,8 +358,13 @@ class WaldAbBrandList extends StatelessWidget {
       final abModel = gFFI.abModel;
       final names = abModel.addressBookNames()
         ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      final allIndex = names.indexWhere((e) =>
+      var allIndex = names.indexWhere((e) =>
           abModel.addressbooks[e]?.sharedProfile()?.guid == _kAllAbGuid);
+      // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드는 '전체'를 보이지 않는다 — 내용이 그 브랜드와 같다.
+      if (isWaldBrandBuild && allIndex >= 0 && names.length > 1) {
+        names.removeAt(allIndex);
+        allIndex = -1;
+      }
       if (allIndex > 0) names.insert(0, names.removeAt(allIndex));
       final current = abModel.currentName.value;
       // 부록 A-53: 줄마다 클라이언트 수. 지연 생성되는 itemBuilder 는 Obx 가 추적하지 못해 여기서 미리 센다.

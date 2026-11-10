@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common/hbbs/hbbs.dart';
+import 'package:flutter_hbb/common/wald_brand.dart';
 import 'package:flutter_hbb/common/widgets/peers_view.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/model.dart';
@@ -782,6 +783,20 @@ class AbModel {
       } else {
         _currentName.value = '';
       }
+    }
+    // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드는 목록에서 '전체'를 숨긴다(wald_ab.dart) — 고른 것이 '전체'면
+    // 그 브랜드 주소록으로 바꾼다. '전체' 자체는 남는다(최근 세션·즐겨찾기의 이름 표시와 이름 바꾸기가 쓴다).
+    if (isWaldBrandBuild &&
+        addressbooks[_currentName.value]?.sharedProfile()?.guid == 'all') {
+      final brands = addressbooks.entries
+          .where((e) {
+            final guid = e.value.sharedProfile()?.guid;
+            return guid != null && guid != 'all';
+          })
+          .map((e) => e.key)
+          .toList()
+        ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+      if (brands.isNotEmpty) _currentName.value = brands.first;
     }
     if (!current.initialized) {
       await current.pullAb(quiet: false);

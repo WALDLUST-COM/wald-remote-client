@@ -334,6 +334,12 @@ fn send_waldlust_heartbeat(client: &reqwest::blocking::Client, include_apps: boo
         // 어드민이 기기가 쓰는 설치 파일을 고를 때 Windows 64·32비트(Sciter)를 가른다 — "x86_64"/"x86"/"aarch64"/"arm"(결정 D37).
         "arch": std::env::consts::ARCH,
     });
+    // 브랜드 전용 빌드(DSK-01, 결정 D53)는 빌드 코드를 싣는다 — 어드민이 브랜드 수신용 기기를 그 브랜드에 배정하고
+    // 그 브랜드의 설치 파일과 버전을 견준다. 일반 빌드는 싣지 않는다.
+    let brand = crate::wald_brand::code();
+    if !brand.is_empty() {
+        body["brand"] = serde_json::json!(brand);
+    }
     if let Some((total, free)) = disk {
         body["diskUsed"] = serde_json::json!(total.saturating_sub(free));
         body["diskTotal"] = serde_json::json!(total);

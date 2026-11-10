@@ -2805,6 +2805,10 @@ pub fn main_get_printer_names() -> SyncReturn<String> {
 }
 
 pub fn main_get_common(key: String) -> String {
+    // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드의 코드(일반 빌드는 빈 값) — src/wald_brand.rs.
+    if key == "wald-brand" {
+        return crate::wald_brand::code().to_owned();
+    }
     // Waldlust(명세 DSK-01 — 앱 안 업데이트): wald-update-* 는 src/wald_update.rs.
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "android"))]
     if key.starts_with("wald-update-") {

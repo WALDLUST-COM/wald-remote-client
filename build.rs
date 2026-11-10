@@ -77,6 +77,21 @@ fn install_android_deps() {
     println!("cargo:rustc-link-lib=OpenSLES");
 }
 
+// Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드의 코드(WALDLUST_BRAND — src/wald_brand.rs). 비우면 일반 빌드다.
+// 형식이 틀리면 멈춘다 — 틀린 값으로 빌드하면 일반 빌드처럼 동작해 브랜드 제한 없이 나간다. 값은 출력하지 않는다.
+fn check_waldlust_brand() {
+    println!("cargo:rerun-if-env-changed=WALDLUST_BRAND");
+    let brand = std::env::var("WALDLUST_BRAND").unwrap_or_default();
+    let ok = brand.is_empty()
+        || ((8..=12).contains(&brand.len())
+            && brand
+                .bytes()
+                .all(|b| b.is_ascii_lowercase() || b.is_ascii_digit()));
+    if !ok {
+        panic!("WALDLUST_BRAND 는 비우거나 소문자·숫자 8~12자(어드민이 발급한 브랜드 코드)여야 한다");
+    }
+}
+
 // Waldlust(DSK-01): 빌드 변형을 확인한다. 수신 전용 빌드는 공통 영구 비밀번호 해시가 없으면 멈춘다
 // (src/wald_variant.rs, res/wald-variant/preset_hash.py). 값은 출력하지 않는다.
 fn check_waldlust_variant() {
@@ -161,6 +176,7 @@ fn check_incoming_icons() {
 
 fn main() {
     check_waldlust_variant();
+    check_waldlust_brand();
     hbb_common::gen_version();
     install_android_deps();
     #[cfg(all(windows, feature = "inline"))]

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_hbb/common/wald_brand.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
@@ -40,7 +41,11 @@ class PeerTabModel with ChangeNotifier {
   List<bool> isEnabled = List.from([
     true,
     true,
-    !isWeb && bind.mainGetLocalOption(key: "disable-discovery-panel") != "Y",
+    // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드는 '발견됨' 탭을 숨긴다 — 같은 LAN 의 기기를 직접 찾는 탭이라
+    // 서버의 브랜드 제한이 닿지 않는다.
+    !isWeb &&
+        !isWaldBrandBuild &&
+        bind.mainGetLocalOption(key: "disable-discovery-panel") != "Y",
     !(bind.isDisableAb() || bind.isDisableAccount()),
     !(bind.isDisableGroupPanel() || bind.isDisableAccount()),
   ]);

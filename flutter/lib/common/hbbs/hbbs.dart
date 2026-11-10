@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
+import 'package:flutter_hbb/common/wald_brand.dart';
 import 'package:flutter_hbb/consts.dart';
 
 import 'package:flutter_hbb/models/peer_model.dart';
@@ -173,6 +174,8 @@ class LoginRequest {
       debugPrint('Failed to decode get device info: $e');
     }
     data['deviceInfo'] = deviceInfo;
+    // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드는 빌드 코드를 싣는다 — 서버가 그 브랜드 계정만 로그인시킨다.
+    if (isWaldBrandBuild) data['brand'] = waldBrandCode;
     return data;
   }
 }
