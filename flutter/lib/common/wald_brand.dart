@@ -7,3 +7,11 @@ import 'package:flutter_hbb/models/platform_model.dart';
 final String waldBrandCode = bind.mainGetCommonSync(key: 'wald-brand');
 
 bool get isWaldBrandBuild => waldBrandCode.isNotEmpty;
+
+/// 화면에 보이는 브랜드 이름(빌드 환경변수 WALDLUST_BRAND_NAME — 없으면 빈 문자열). 표시용이다.
+/// 수신 전용 홈의 ID 줄·앱바와 정보(ⓘ) 창에 보인다(common/widgets/wald_app_info.dart).
+final String waldBrandName = bind.mainGetCommonSync(key: 'wald-brand-name');
+
+/// 정보 창 '브랜드' 줄의 값: 이름(코드). 이름이 없으면 코드만.
+String get waldBrandInfoText =>
+    waldBrandName.isEmpty ? waldBrandCode : '$waldBrandName ($waldBrandCode)';

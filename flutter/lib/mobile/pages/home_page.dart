@@ -226,7 +226,16 @@ class HomePageState extends State<HomePage> {
       );
     }
     // Waldlust(DSK-10 — 부록 A-38): 수신 전용은 APP_NAME(`Waldlust`) 대신 런처와 같은 이름.
-    if (isAndroid && bind.isIncomingOnly()) return Text(kWaldAppDisplayName);
+    if (isAndroid && bind.isIncomingOnly()) {
+      // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드는 이름 오른쪽에 브랜드 이름.
+      final brand = waldBrandLabel(fontSize: 13);
+      if (brand == null) return Text(kWaldAppDisplayName);
+      return Row(mainAxisSize: MainAxisSize.min, children: [
+        Text(kWaldAppDisplayName),
+        const SizedBox(width: 8),
+        Flexible(child: brand),
+      ]);
+    }
     return Text(bind.mainGetAppNameSync());
   }
 }

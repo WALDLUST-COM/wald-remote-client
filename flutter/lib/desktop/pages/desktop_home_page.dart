@@ -227,6 +227,14 @@ class _DesktopHomePageState extends State<DesktopHomePage>
                                   ?.color
                                   ?.withOpacity(0.5)),
                         ).marginOnly(top: 5),
+                        // Waldlust(DSK-01, 결정 D53): 수신 전용 브랜드 빌드는 ID 이름 옆에 브랜드 이름(높이를 더 쓰지 않는다).
+                        if (bind.isIncomingOnly() && waldBrandLabel() != null)
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.centerRight,
+                              child: waldBrandLabel(),
+                            ).marginOnly(left: 8, right: 4, top: 4),
+                          ),
                         // Waldlust(DSK-02): 수신 전용 + 설정 잠금이면 설정 진입점(⋮)을 숨긴다.
                         if (!(bind.isIncomingOnly() && bind.isDisableSettings()))
                           buildPopupMenu(context)

@@ -93,6 +93,7 @@ function waldHome() {
                 <div .wald-board-body>
                     <div .wald-label-row>
                         <div .wald-label>{translate('ID')}</div>
+                        {waldBrandChip()}
                         <div .wald-about-btn #wald-about title={translate('About')}>{wald_svg.info}</div>
                     </div>
                     <div .wald-id-value>{key_confirmed ? formatId(get_id()) : translate("Generating ...")}</div>
@@ -110,6 +111,22 @@ function waldHome() {
 // 수신 전용은 설정이 잠겨(disable-settings) 버전을 볼 곳이 없다. 업스트림 showAbout(index.tis)은 rustdesk.com 링크라 쓰지 않는다.
 // 화면 글자는 ASCII 만(위 waldLegal 주석) — 이름은 translate('wald-app-display-name'), '(c)' 기호는 \u00A9 로 넣는다.
 // 상태 줄까지 덮도록 index.tis App.render 의 div.wald-home 끝에 그린다.
+// Brand-only build (DSK-01, decision D53): the brand name next to the ID label and a 'Brand' row in the info dialog,
+// same as Flutter (wald_app_info.dart waldBrandLabel / waldBrandInfoText). Empty for a general build.
+function waldBrandChip() {
+    var name = handler.wald_brand_name();
+    if (!name) return "";
+    return <div .wald-brand-chip>{name}</div>;
+}
+
+function waldBrandInfoRow() {
+    var code = handler.wald_brand_code();
+    if (!code) return "";
+    var name = handler.wald_brand_name();
+    var text = name ? name + " (" + code + ")" : code;
+    return <div .wald-info-row><div .wald-info-label>{translate('wald-brand')}</div><div .wald-info-value>{text}</div></div>;
+}
+
 const WALD_PRIVACY_URL = "https://remote.waldpay.co.kr/privacy";
 var wald_about_open = false;
 
@@ -120,6 +137,7 @@ function waldAbout() {
             <div .wald-dialog-title>{translate('wald-app-display-name')}</div>
             <div .wald-info-row><div .wald-info-label>{translate('Version')}</div><div .wald-info-value>{handler.get_version()}</div></div>
             <div .wald-info-row><div .wald-info-label>{translate('Build Date')}</div><div .wald-info-value>{handler.get_build_date()}</div></div>
+            {waldBrandInfoRow()}
             {waldUpdateAboutRow()}
             <div .wald-dialog-divider />
             <div .wald-info-link #wald-about-privacy>{translate('Privacy Statement')}{wald_svg.externalLink}</div>

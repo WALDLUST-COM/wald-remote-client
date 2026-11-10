@@ -255,6 +255,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("wald-password-hangul-tip", "Korean can't be entered — switch to English input with the Han/Eng key"),
         ("wald-password-capslock-tip", "Caps Lock is on"),
         ("wald-app-display-name", "Waldlust 원격지원"),
+        ("wald-brand", "Brand"),
         ("wald-helper-card-title", "Auto recovery"),
         ("wald-helper-row", "Helper app"),
         ("wald-helper-installed-tip", "Installed — remote access comes back after a force stop, or a force stop and a reboot (right after a force stop only when helper input control is on)."),

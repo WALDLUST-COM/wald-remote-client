@@ -157,6 +157,21 @@ div.wald-label-row div.wald-label {
     width: *;
 }
 
+/* 브랜드 전용 빌드(결정 D53): ID 이름과 정보 버튼 사이의 브랜드 이름 — 줄 높이를 더 쓰지 않는다 */
+div.wald-brand-chip {
+    max-width: 150px;
+    height: 16px;
+    margin: 5px 4px 0 8px;
+    padding: 0 6px;
+    border: 1px solid #737373;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 div.wald-about-btn {
     size: 30px;
     border-radius: 15px;

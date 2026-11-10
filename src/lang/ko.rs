@@ -692,6 +692,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         // Waldlust(DSK-10 — 부록 A-39): 32비트 Sciter 수신 전용 화면의 앱 이름. 브랜드라 언어와 관계없이 같고(en.rs 도 같은 값),
         // Flutter 상수 kWaldAppDisplayName(flutter/lib/common/widgets/wald_app_info.dart)과 같은 값이다.
         ("wald-app-display-name", "Waldlust 원격지원"),
+        // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드 정보 창의 '브랜드' 줄(Flutter·Sciter 공통).
+        ("wald-brand", "브랜드"),
         // Waldlust(DSK-02 — 결정 D40): 수신 전용 Android 홈의 '자동 복구' 카드(flutter/lib/mobile/widgets/wald_helper_card.dart).
         ("wald-helper-card-title", "자동 복구"),
         ("wald-helper-row", "도우미 앱"),

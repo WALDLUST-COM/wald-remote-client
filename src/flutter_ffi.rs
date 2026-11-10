@@ -2809,6 +2809,10 @@ pub fn main_get_common(key: String) -> String {
     if key == "wald-brand" {
         return crate::wald_brand::code().to_owned();
     }
+    // 화면에 보이는 브랜드 이름(없으면 빈 값) — 표시용.
+    if key == "wald-brand-name" {
+        return crate::wald_brand::name().to_owned();
+    }
     // Waldlust(명세 DSK-01 — 앱 안 업데이트): wald-update-* 는 src/wald_update.rs.
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "android"))]
     if key.starts_with("wald-update-") {

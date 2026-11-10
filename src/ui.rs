@@ -535,6 +535,15 @@ impl UI {
         crate::BUILD_DATE.to_owned()
     }
 
+    // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드의 코드·화면 이름(wald.tis 의 ID 줄·정보 창 — 일반 빌드는 빈 값).
+    fn wald_brand_code(&self) -> String {
+        crate::wald_brand::code().to_owned()
+    }
+
+    fn wald_brand_name(&self) -> String {
+        crate::wald_brand::name().to_owned()
+    }
+
     // Waldlust(DSK-01 — 결정 D44): 32비트 수신 전용 앱 안 업데이트(wald.tis 가 2초마다 읽는다 — 캐시라 막지 않는다).
     fn wald_update_state(&self) -> String {
         #[cfg(any(target_os = "windows", target_os = "macos"))]
@@ -811,6 +820,8 @@ impl sciter::EventHandler for UI {
         fn get_new_version();
         fn get_version();
         fn get_build_date();
+        fn wald_brand_code();
+        fn wald_brand_name();
         fn wald_update_state();
         fn wald_update_cmd(String);
         fn get_fingerprint();

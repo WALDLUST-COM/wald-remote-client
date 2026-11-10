@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher_string.dart';
 import '../../common.dart';
 import '../../desktop/widgets/wald_update.dart';
 import '../../models/platform_model.dart';
+import '../wald_brand.dart';
 
 // Waldlust(DSK-07·DSK-10 — 명세 부록 A-38): 화면에 쓰는 앱 이름. 런처 라벨(AndroidManifest
 // android:label)·macOS 번들 이름(AppInfo.xcconfig PRODUCT_NAME)·Windows 시작 메뉴(Inno AppName)와 같다.
@@ -43,6 +44,26 @@ Widget waldDesktopAppInfoButton(BuildContext context) {
           ),
         ),
       ),
+    ),
+  );
+}
+
+/// Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드의 이름 표시 — 현장에서 이 앱이 어느 브랜드용인지 바로 본다.
+/// 수신 전용 홈의 ID 줄(Windows)·앱바 제목 아래(Android)에 둔다. 이름이 없는 빌드는 null.
+Widget? waldBrandLabel({double fontSize = 12}) {
+  if (waldBrandName.isEmpty) return null;
+  return Container(
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+    decoration: BoxDecoration(
+      border: Border.all(color: WaldPalette.neutral500),
+      borderRadius: BorderRadius.circular(4),
+    ),
+    child: Text(
+      waldBrandName,
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(fontSize: fontSize, height: 1.3),
     ),
   );
 }
@@ -87,6 +108,8 @@ Future<void> showWaldAppInfo() async {
         children: [
           infoRow(translate('Version'), appVersion),
           infoRow(translate('Build Date'), buildDate),
+          // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드면 이름과 빌드 코드(어드민 '브랜드 관리'의 '빌드 코드'와 대조).
+          if (isWaldBrandBuild) infoRow(translate('wald-brand'), waldBrandInfoText),
           // Waldlust(DSK-01 — 결정 D44): 수신 전용은 설정·홈 카드가 없어 최신 버전 확인·앱 안 업데이트를 여기 둔다.
           if (waldUpdateSupported && bind.isIncomingOnly())
             const WaldUpdateAboutRow(compact: true),

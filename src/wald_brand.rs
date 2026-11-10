@@ -8,6 +8,10 @@
 //! 서버가 이 값으로 범위를 좁힌다: 그 브랜드 계정(과 관리자 이상)만 로그인되고, 주소록은 그 브랜드만 보이고,
 //! 앱 안 업데이트는 그 브랜드의 설치 파일만 받는다. 코드는 바이너리에 들어가므로 비밀이 아니다 — 인증이 아니라
 //! 범위를 좁히는 값이다. 이 저장소에는 브랜드 이름도 실제 코드도 두지 않는다(테스트는 가짜 코드를 쓴다).
+//!
+//! 화면 표시(2026-11-10 사용자): 빌드 환경변수 `WALDLUST_BRAND_NAME`(선택, 30자 이하)에 브랜드 이름을 주면 수신 전용 홈의
+//! ID 줄과 정보(ⓘ) 창에 보인다 — 현장에서 이 앱이 어느 브랜드용인지 네트워크 없이 확인한다. 이름은 표시용일 뿐 서버로
+//! 보내지 않고 어떤 판정에도 쓰지 않는다. 이름을 바꾸려면 다시 빌드한다.
 
 // build.rs(check_waldlust_brand)가 넣는다. 접두(wald-brand-build:)는 여기 따로 적지 않는다 — 결과물에 표식이 하나만 남게.
 const MARK: &str = env!("WALDLUST_BRAND_MARK");
@@ -24,6 +28,14 @@ fn code_of(mark: &str) -> &str {
         Some((_, c)) if is_code(c) => c,
         _ => "",
     }
+}
+
+/// 화면에 보이는 브랜드 이름(build.rs 가 WALDLUST_BRAND_NAME 을 넘긴다). 일반 빌드와 이름을 주지 않은 브랜드 빌드는 빈 문자열.
+pub fn name() -> &'static str {
+    if code().is_empty() {
+        return "";
+    }
+    env!("WALDLUST_BRAND_NAME_BUILD")
 }
 
 /// 브랜드 코드 형식: 소문자·숫자 8~12자(어드민 lib/brandcode.ts 와 같다).
@@ -95,5 +107,8 @@ mod tests {
         assert_eq!(prefix, "wald-brand-build");
         assert!(value == "none" || is_code(value));
         assert_eq!(code().is_empty(), value == "none");
+        // 이름은 브랜드 빌드에만 있다.
+        assert!(!code().is_empty() || name().is_empty());
+        assert!(name().chars().count() <= 30);
     }
 }

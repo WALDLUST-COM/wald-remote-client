@@ -96,6 +96,17 @@ fn check_waldlust_brand() {
         "cargo:rustc-env=WALDLUST_BRAND_MARK=wald-brand-build:{}",
         if brand.is_empty() { "none" } else { &brand }
     );
+    // 화면에 보이는 브랜드 이름(WALDLUST_BRAND_NAME — 선택). 브랜드 빌드에만 줄 수 있다. 이름은 저장소 밖 빌드 설정에만 둔다.
+    println!("cargo:rerun-if-env-changed=WALDLUST_BRAND_NAME");
+    let name = std::env::var("WALDLUST_BRAND_NAME").unwrap_or_default();
+    let name = name.trim();
+    if !name.is_empty() && brand.is_empty() {
+        panic!("WALDLUST_BRAND_NAME 은 브랜드 전용 빌드(WALDLUST_BRAND)에만 줄 수 있다");
+    }
+    if name.chars().count() > 30 || name.chars().any(|c| c.is_control()) {
+        panic!("WALDLUST_BRAND_NAME 은 30자 이하이고 줄바꿈·제어 문자가 없어야 한다");
+    }
+    println!("cargo:rustc-env=WALDLUST_BRAND_NAME_BUILD={}", name);
 }
 
 // Waldlust(DSK-01): 빌드 변형을 확인한다. 수신 전용 빌드는 공통 영구 비밀번호 해시가 없으면 멈춘다
