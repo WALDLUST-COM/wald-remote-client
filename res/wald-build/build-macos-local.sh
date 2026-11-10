@@ -12,6 +12,7 @@
 #        결과 이름에 -<코드> 가 붙는다(.app, dmg waldlust-remote-<코드>-<버전>-…, manifest-macos-<변형>-<코드>.txt 와 그 안의 brand: 줄).
 #        빌드 뒤 결과물에서 표식 wald-brand-build:<코드>(일반 빌드는 …:none)를 찾아 확인한다. build-windows-local.ps1 -Brand 와 같은 규칙.
 #        --brand 가 없으면 WALDLUST_BRAND 를 지운다 — 셸에 남은 값이 일반 빌드에 들어가지 않는다.
+#        같은 파일의 WALDLUST_BRAND_NAME=<화면에 보일 브랜드 이름>(선택)은 정보 창의 '브랜드' 줄에 보인다(수신 전용은 홈에도).
 #
 # 원칙
 # - 비관리 빌드: WALDLUST_PRESET_PASSWORD 를 넣지 않는다.
@@ -85,7 +86,7 @@ if [ -n "$PROD" ]; then
   export WALDLUST_HEARTBEAT_URL="https://remote.waldpay.co.kr/api/heartbeat"
   export WALDLUST_API_SERVER="https://remote.waldpay.co.kr/rd"
 fi
-unset WALDLUST_PRESET_PASSWORD WALDLUST_VARIANT WALDLUST_BRAND
+unset WALDLUST_PRESET_PASSWORD WALDLUST_VARIANT WALDLUST_BRAND WALDLUST_BRAND_NAME
 
 step() { echo "== $1 $(date +%T)"; }
 die() { echo "FAIL: $1 (로그: $LOG)"; exit 1; }
@@ -109,6 +110,10 @@ if [ -n "$BRAND" ]; then
   CODE=$(sed -n 's/^[[:space:]]*WALDLUST_BRAND=//p' "$BRAND_ENV" | tail -1 | tr -d '[:space:]')
   print -r -- "$CODE" | LC_ALL=C grep -Eqx '[a-z0-9]{8,12}' || die "$BRAND_ENV: WALDLUST_BRAND 는 소문자·숫자 8~12자여야 한다"
   export WALDLUST_BRAND="$CODE"
+  # 화면에 보이는 브랜드 이름(선택 — WALDLUST_BRAND_NAME, 30자 이하). 형식은 build.rs 가 검사한다.
+  BRAND_NAME=$(sed -n 's/^[[:space:]]*WALDLUST_BRAND_NAME=//p' "$BRAND_ENV" | tail -1 | tr -d '\r')
+  [ -z "$BRAND_NAME" ] || export WALDLUST_BRAND_NAME="$BRAND_NAME"
+  echo "brand $CODE, 화면 이름 ${BRAND_NAME:-(없음)}"
 fi
 BTAG=""; [ -n "$CODE" ] && BTAG="-$CODE"
 

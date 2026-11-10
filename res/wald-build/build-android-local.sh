@@ -13,6 +13,7 @@
 #        메인 APK 이름에 -<코드> 가 붙고(waldlust-remote[-incoming]-<코드>-<버전>-android…), manifest-android-<변형>-<코드>.txt 에
 #        brand: 줄이 들어간다. 도우미·입력 플러그인은 브랜드와 무관해 이름이 그대로다. 빌드 뒤 ABI 마다 표식
 #        wald-brand-build:<코드>(일반 빌드는 …:none)를 확인한다. --brand 가 없으면 WALDLUST_BRAND 를 지운다.
+#        같은 파일의 WALDLUST_BRAND_NAME=<화면에 보일 브랜드 이름>(선택)은 수신 전용 앱바와 정보 창의 '브랜드' 줄에 보인다.
 #        수신 전용이면 도우미 앱(wald-helper — 부록 A-44, 결정 D39·D40)도 같은 버전·같은 서명으로 먼저 만들어 메인 APK 의
 #        assets/wald-helper.apk 로 넣고(앱이 설치한다 — D40), 따로도 남긴다:
 #        dist 의 waldlust-remote-helper-<버전>-android[-<대상>].apk 와 manifest-android-helper.txt. wald-helper 가 없는 옛 ref 는 건너뛴다.
@@ -109,7 +110,7 @@ if [ -n "$PROD" ]; then
   export WALDLUST_HEARTBEAT_URL="https://remote.waldpay.co.kr/api/heartbeat"
   export WALDLUST_API_SERVER="https://remote.waldpay.co.kr/rd"
 fi
-unset WALDLUST_PRESET_PASSWORD WALDLUST_VARIANT WALDLUST_INCOMING_PW_STORAGE WALDLUST_INCOMING_PW_SALT WALDLUST_BRAND
+unset WALDLUST_PRESET_PASSWORD WALDLUST_VARIANT WALDLUST_INCOMING_PW_STORAGE WALDLUST_INCOMING_PW_SALT WALDLUST_BRAND WALDLUST_BRAND_NAME
 [ "${WALD_TEST_MANAGED:-}" = 1 ] && export WALDLUST_PRESET_PASSWORD=local-test-marker
 [ "$VARIANT" = outgoing ] && export WALDLUST_VARIANT=outgoing   # build.rs·wald_variant.rs·app/build.gradle 이 읽는다
 # macOS: bindgen(kcp-sys, scrap 등)이 Android 헤더를 찾도록 NDK sysroot 를 준다. Linux CI 는 호스트 /usr/include 로 넘어간다.
@@ -141,6 +142,10 @@ if [ -n "$BRAND" ]; then
     WALD_INCOMING_ENV="$BRAND_ENV"   # 아래 '수신 전용' 단계가 이 파일을 읽는다(공통 비밀번호 파일로 떨어지지 않는다)
   fi
   export WALDLUST_BRAND="$CODE"
+  # 화면에 보이는 브랜드 이름(선택 — WALDLUST_BRAND_NAME, 30자 이하). 형식은 build.rs 가 검사한다.
+  BRAND_NAME=$(sed -n 's/^[[:space:]]*WALDLUST_BRAND_NAME=//p' "$BRAND_ENV" | tail -1 | tr -d '\r')
+  [ -z "$BRAND_NAME" ] || export WALDLUST_BRAND_NAME="$BRAND_NAME"
+  echo "brand $CODE, 화면 이름 ${BRAND_NAME:-(없음)}"
 fi
 BTAG=""; [ -n "$CODE" ] && BTAG="-$CODE"
 

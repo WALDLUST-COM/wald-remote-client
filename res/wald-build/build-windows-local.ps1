@@ -84,7 +84,7 @@ if ($Prod) {
   $env:WALDLUST_API_SERVER = 'https://remote.waldpay.co.kr/rd'
 }
 Remove-Item Env:WALDLUST_PRESET_PASSWORD -ErrorAction SilentlyContinue
-foreach ($k in 'WALDLUST_VARIANT', 'WALDLUST_INCOMING_PW_STORAGE', 'WALDLUST_INCOMING_PW_SALT', 'WALDLUST_INCOMING_PASSWORD', 'WALDLUST_INCOMING_SALT', 'WALDLUST_BRAND') {
+foreach ($k in 'WALDLUST_VARIANT', 'WALDLUST_INCOMING_PW_STORAGE', 'WALDLUST_INCOMING_PW_SALT', 'WALDLUST_INCOMING_PASSWORD', 'WALDLUST_INCOMING_SALT', 'WALDLUST_BRAND', 'WALDLUST_BRAND_NAME') {
   Remove-Item "Env:$k" -ErrorAction SilentlyContinue
 }
 
@@ -103,8 +103,9 @@ if ($Brand) {
   if (-not $BrandEnv) { $BrandEnv = Join-Path $Out "brand-$Brand.env" }
   if (-not (Test-Path -LiteralPath $BrandEnv)) { Die "$BrandEnv not found (WALDLUST_BRAND=<code>; incoming-only also WALDLUST_INCOMING_PASSWORD, WALDLUST_INCOMING_SALT)" }
   $brandVals = @{}
-  foreach ($line in Get-Content -LiteralPath $BrandEnv) {
-    if ($line -match '^\s*(WALDLUST_BRAND|WALDLUST_INCOMING_PASSWORD|WALDLUST_INCOMING_SALT)=(.*)$') { $brandVals[$Matches[1]] = $Matches[2] }
+  # UTF-8: the display name (WALDLUST_BRAND_NAME) may be non-ASCII; PowerShell 5.1 reads ANSI by default.
+  foreach ($line in Get-Content -LiteralPath $BrandEnv -Encoding UTF8) {
+    if ($line -match '^\s*(WALDLUST_BRAND|WALDLUST_BRAND_NAME|WALDLUST_INCOMING_PASSWORD|WALDLUST_INCOMING_SALT)=(.*)$') { $brandVals[$Matches[1]] = $Matches[2] }
   }
   $Code = "$($brandVals['WALDLUST_BRAND'])".Trim()
   if ($Code -cnotmatch '^[a-z0-9]{8,12}$') { Die "${BrandEnv}: WALDLUST_BRAND must be 8-12 lowercase letters and digits" }
@@ -125,8 +126,12 @@ if ($Brand) {
     }
     $IncomingEnv = $BrandEnv
   }
+  # Optional display name shown in the app (info dialog; incoming-only home). build.rs checks the format (<= 30 chars).
+  $BrandName = "$($brandVals['WALDLUST_BRAND_NAME'])".Trim()
   $brandVals = $null
   $env:WALDLUST_BRAND = $Code
+  if ($BrandName) { $env:WALDLUST_BRAND_NAME = $BrandName }
+  Write-Output "brand $Code, display name: $(if ($BrandName) { 'set' } else { 'none' })"
 }
 $BrandTag = if ($Code) { "-$Code" } else { '' }
 
