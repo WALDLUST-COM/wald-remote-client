@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_hbb/common/wald_brand.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/widgets/audio_input.dart';
 import 'package:flutter_hbb/common/widgets/setting_widgets.dart';
@@ -2428,6 +2429,11 @@ class _AboutState extends State<_About> {
               SelectionArea(
                   child: Text('${translate('Build Date')}: $buildDate')
                       .marginSymmetric(vertical: 4.0)),
+              // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드면 이름과 빌드 코드(수신 전용 정보 창과 같은 값).
+              if (isWaldBrandBuild)
+                SelectionArea(
+                    child: Text('${translate('wald-brand')}: $waldBrandInfoText')
+                        .marginSymmetric(vertical: 4.0)),
               // Waldlust(명세 DSK-01): 최신 버전 확인·앱 안 업데이트(직원용 macOS·Windows).
               if (waldUpdateSupported) const WaldUpdateAboutRow(),
               if (!isWeb)
