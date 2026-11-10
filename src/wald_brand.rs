@@ -1,17 +1,26 @@
 //! Waldlust: 브랜드 전용 빌드(DSK-01, 결정 D53).
 //!
 //! 빌드 환경변수 `WALDLUST_BRAND` 에 브랜드 코드(소문자·숫자 8~12자 — 어드민이 브랜드마다 한 번 발급한다)를 주면
-//! 그 브랜드 전용 빌드가 된다. 비우면 일반 빌드다. 형식 검사는 build.rs 가 한다.
+//! 그 브랜드 전용 빌드가 된다. 비우면 일반 빌드다. 형식 검사는 build.rs 가 하고, 값은 표식 문자열
+//! `wald-brand-build:<코드>`(일반 빌드는 `wald-brand-build:none`)로 넘겨준다 — 빌드 스크립트가 결과물에서 이 표식을
+//! 찾아 브랜드가 맞게 들어갔는지(또는 일반 빌드에 브랜드가 섞이지 않았는지) 확인한다.
 //! 코드는 로그인 요청(화면 — `main_get_common("wald-brand")`), 포크 heartbeat, 새 버전 확인 요청에 실린다.
 //! 서버가 이 값으로 범위를 좁힌다: 그 브랜드 계정(과 관리자 이상)만 로그인되고, 주소록은 그 브랜드만 보이고,
 //! 앱 안 업데이트는 그 브랜드의 설치 파일만 받는다. 코드는 바이너리에 들어가므로 비밀이 아니다 — 인증이 아니라
 //! 범위를 좁히는 값이다. 이 저장소에는 브랜드 이름도 실제 코드도 두지 않는다(테스트는 가짜 코드를 쓴다).
 
-const BRAND: Option<&str> = option_env!("WALDLUST_BRAND");
+// build.rs(check_waldlust_brand)가 넣는다.
+const MARK: &str = env!("WALDLUST_BRAND_MARK");
+const MARK_PREFIX: &str = "wald-brand-build:";
 
 /// 이 빌드의 브랜드 코드. 일반 빌드는 빈 문자열.
 pub fn code() -> &'static str {
-    match BRAND {
+    // black_box: 표식 문자열이 통째로 결과물에 남게 한다(짧은 문자열은 컴파일러가 쪼개 넣어 찾을 수 없다).
+    code_of(std::hint::black_box(MARK))
+}
+
+fn code_of(mark: &str) -> &str {
+    match mark.strip_prefix(MARK_PREFIX) {
         Some(c) if is_code(c) => c,
         _ => "",
     }
@@ -68,9 +77,22 @@ mod tests {
         assert!(!response_matches("", Some(FAKE)));
     }
 
-    // 테스트 빌드는 WALDLUST_BRAND 없이 돈다 — 그때 code() 는 비어 있다. 값을 주고 돌리면 그 값이 형식에 맞아야 한다.
     #[test]
-    fn test_code_is_empty_or_valid() {
+    fn test_code_of_mark() {
+        assert_eq!(code_of("wald-brand-build:testbrand2"), FAKE);
+        assert_eq!(code_of("wald-brand-build:none"), "");
+        assert_eq!(code_of("wald-brand-build:"), "");
+        assert_eq!(code_of("wald-brand-build:BAD CODE"), "");
+        assert_eq!(code_of("testbrand2"), "");
+        assert_eq!(code_of(""), "");
+    }
+
+    // 테스트 빌드는 보통 WALDLUST_BRAND 없이 돈다 — 그때 표식은 none 이고 code() 는 비어 있다.
+    // 값을 주고 돌리면 그 값이 형식에 맞아야 한다.
+    #[test]
+    fn test_build_mark() {
+        assert!(MARK.starts_with(MARK_PREFIX));
         assert!(code().is_empty() || is_code(code()));
+        assert_eq!(code().is_empty(), MARK == "wald-brand-build:none");
     }
 }

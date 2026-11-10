@@ -78,7 +78,9 @@ fn install_android_deps() {
 }
 
 // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드의 코드(WALDLUST_BRAND — src/wald_brand.rs). 비우면 일반 빌드다.
-// 형식이 틀리면 멈춘다 — 틀린 값으로 빌드하면 일반 빌드처럼 동작해 브랜드 제한 없이 나간다. 값은 출력하지 않는다.
+// 형식이 틀리면 멈춘다 — 틀린 값으로 빌드하면 일반 빌드처럼 동작해 브랜드 제한 없이 나간다.
+// 코드는 표식 문자열(wald-brand-build:<코드>, 일반 빌드는 wald-brand-build:none)로 넘긴다 — 빌드 스크립트가
+// 결과물에서 이 표식을 찾아 확인한다(wald-remote-docs/wald-build).
 fn check_waldlust_brand() {
     println!("cargo:rerun-if-env-changed=WALDLUST_BRAND");
     let brand = std::env::var("WALDLUST_BRAND").unwrap_or_default();
@@ -90,6 +92,10 @@ fn check_waldlust_brand() {
     if !ok {
         panic!("WALDLUST_BRAND 는 비우거나 소문자·숫자 8~12자(어드민이 발급한 브랜드 코드)여야 한다");
     }
+    println!(
+        "cargo:rustc-env=WALDLUST_BRAND_MARK=wald-brand-build:{}",
+        if brand.is_empty() { "none" } else { &brand }
+    );
 }
 
 // Waldlust(DSK-01): 빌드 변형을 확인한다. 수신 전용 빌드는 공통 영구 비밀번호 해시가 없으면 멈춘다
