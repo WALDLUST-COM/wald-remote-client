@@ -109,7 +109,14 @@ Future<void> showWaldAppInfo() async {
           infoRow(translate('Version'), appVersion),
           infoRow(translate('Build Date'), buildDate),
           // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드면 이름과 빌드 코드(어드민 '브랜드 관리'의 '빌드 코드'와 대조).
-          if (isWaldBrandBuild) infoRow(translate('wald-brand'), waldBrandInfoText),
+          // 데스크탑 수신 전용 창은 좁고 낮아(부록 A-39) 이름과 코드를 한 줄에 넣으면 글자가 아주 작아지고, 두 줄로 꺾으면
+          // 저작권 줄이 가려진다 — 이름만 보이고 코드는 마우스를 올리면 나온다. 이름이 없는 빌드는 코드를 보인다.
+          if (isWaldBrandBuild)
+            narrow && waldBrandName.isNotEmpty
+                ? Tooltip(
+                    message: waldBrandCode,
+                    child: infoRow(translate('wald-brand'), waldBrandName))
+                : infoRow(translate('wald-brand'), waldBrandInfoText),
           // Waldlust(DSK-01 — 결정 D44): 수신 전용은 설정·홈 카드가 없어 최신 버전 확인·앱 안 업데이트를 여기 둔다.
           if (waldUpdateSupported && bind.isIncomingOnly())
             const WaldUpdateAboutRow(compact: true),
