@@ -12,6 +12,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
+import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/file_manager_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
@@ -64,7 +65,18 @@ void main() async {
       unselectedIcon: Icons.widgets_outlined,
       closable: false,
       page: const _GalleryPreview()));
-  controller.jumpTo(0);
+  controller.add(TabInfo(
+      key: 'dialogs',
+      label: '대화상자',
+      selectedIcon: Icons.chat_bubble,
+      unselectedIcon: Icons.chat_bubble_outline,
+      closable: false,
+      page: const _DialogPreview()));
+  // WALD_PREVIEW_TAB=dialogs 처럼 처음 열 탭을 고른다(화면 캡처용).
+  final first = Platform.environment['WALD_PREVIEW_TAB'];
+  final firstIndex =
+      controller.state.value.tabs.indexWhere((t) => t.key == first);
+  controller.jumpTo(firstIndex < 0 ? 0 : firstIndex);
 
   runApp(GetMaterialApp(
       debugShowCheckedModeBanner: false,
@@ -490,5 +502,136 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
         ],
       ),
     );
+  }
+}
+
+/// Waldlust(DSK-07 — 부록 A-74): 대화상자 견본. 실제 대화상자 위젯(CustomAlertDialog)을 누르지 않고
+/// 한 화면에 늘어놓는다. 배경은 대화상자 뒤 배경색(MyTheme.dialogScrim)이다. 버튼은 동작하지 않는다.
+class _DialogPreview extends StatelessWidget {
+  const _DialogPreview();
+
+  Widget _sample(String label, Widget dialog, {double height = 230}) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: Colors.white)),
+          SizedBox(width: 500, height: height, child: dialog),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    void noop() {}
+    final pw = TextEditingController(text: 'abcd1234');
+    return Stack(children: [
+      Container(color: Theme.of(context).scaffoldBackgroundColor),
+      Container(
+        color: MyTheme.dialogScrim,
+        child: ListView(padding: const EdgeInsets.all(20), children: [
+          Wrap(spacing: 16, runSpacing: 12, children: [
+            _sample(
+                '연결 오류(msgBox error)',
+                CustomAlertDialog(
+                  content: msgboxContent(
+                      'error', 'Connection Error', 'Remote desktop is offline'),
+                  actions: [
+                    dialogButton('Reconnect',
+                        onPressed: noop,
+                        isOutline: true,
+                        icon: const Icon(Icons.refresh)),
+                    dialogButton('OK', onPressed: noop),
+                  ],
+                )),
+            _sample(
+                '삭제 확인(deleteConfirmDialog)',
+                CustomAlertDialog(
+                  content: waldDeleteConfirmContent(
+                      translate('wald-delete-peers-{3}-title')),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Delete', onPressed: noop, isDanger: true),
+                  ],
+                )),
+            _sample(
+                '성공(msgBox success)',
+                CustomAlertDialog(
+                  content: msgboxContent('success', 'Successful', 'Done'),
+                  actions: [dialogButton('OK', onPressed: noop)],
+                )),
+            _sample(
+                '안내(msgBox custom-nocancel-info)',
+                CustomAlertDialog(
+                  content: msgboxContent('custom-nocancel-info', 'Switch Sides',
+                      'Please confirm if you want to share your desktop?'),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('OK', onPressed: noop),
+                  ],
+                )),
+            _sample(
+                '대기(wait-uac)',
+                CustomAlertDialog(
+                  content:
+                      msgboxContent('wait-uac', 'Wait', 'wait_accept_uac_tip'),
+                  actions: [dialogButton('OK', onPressed: noop)],
+                )),
+            _sample(
+                '배지 없는 메시지(connecting)',
+                CustomAlertDialog(
+                  content: msgboxContent('connecting', 'Connecting...',
+                      'Connection in progress. Please wait.'),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true)
+                  ],
+                )),
+            _sample(
+                '제목 + 입력(비밀번호)',
+                CustomAlertDialog(
+                  title: Row(children: [
+                    Icon(waldIcon(Icons.password_rounded),
+                        color: MyTheme.accent),
+                    Text(translate('Password Required')).paddingOnly(left: 10),
+                  ]),
+                  content: TextField(
+                    controller: pw,
+                    obscureText: true,
+                    decoration:
+                        InputDecoration(labelText: translate('Password')),
+                  ),
+                  actions: [
+                    dialogButton('Cancel',
+                        onPressed: noop,
+                        isOutline: true,
+                        icon: Icon(waldIcon(Icons.close_rounded))),
+                    dialogButton('OK',
+                        onPressed: noop,
+                        icon: Icon(waldIcon(Icons.done_rounded))),
+                  ],
+                ),
+                height: 250),
+            _sample(
+                '제목 + 본문(업데이트)',
+                CustomAlertDialog(
+                  title: Text(translate('wald-update-dialog-title')),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('1.5.11  →  1.5.12',
+                          style: TextStyle(fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 12),
+                      Text(translate('wald-update-confirm-tip')),
+                    ],
+                  ),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Update', onPressed: noop),
+                  ],
+                ),
+                height: 250),
+          ]),
+        ]),
+      ),
+    ]);
   }
 }

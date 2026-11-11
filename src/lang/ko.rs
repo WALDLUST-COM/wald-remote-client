@@ -652,6 +652,8 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("wald-update-dialog-title", "앱 업데이트"),
         ("wald-update-confirm-tip", "업데이트하는 동안 진행 중인 원격 연결이 끊기고, 앱이 잠시 닫혔다가 다시 열립니다."),
         ("wald-update-windows-{}-tip", "열려 있는 원격 창 {}개도 함께 닫힙니다."),
+        ("wald-delete-confirm-tip", "목록에서 지워지며 되돌릴 수 없습니다."),
+        ("wald-delete-peers-{}-title", "선택한 기기 {}대를 삭제할까요?"),
         ("wald-update-uac-tip", "설치 권한 확인(사용자 계정 컨트롤) 창이 뜨면 [예]를 누릅니다."),
         ("wald-update-mac-tip", "앱 폴더에 쓸 권한이 없으면 Mac 관리자 암호를 묻습니다."),
         ("wald-update-changelog", "업데이트 내역 보기"),

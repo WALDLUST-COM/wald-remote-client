@@ -1044,7 +1044,6 @@ _connectDialog(
 
     return CustomAlertDialog(
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(waldIcon(Icons.password_rounded), color: MyTheme.accent),
           Text(translate('Password Required')).paddingOnly(left: 10),
@@ -1408,7 +1407,6 @@ showSetOSPassword(
 
     return CustomAlertDialog(
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(waldIcon(Icons.password_rounded), color: MyTheme.accent),
           Text(translate('OS Password')).paddingOnly(left: 10),
@@ -1499,7 +1497,6 @@ showSetOSAccount(
 
     return CustomAlertDialog(
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(waldIcon(Icons.password_rounded), color: MyTheme.accent),
           Text(translate('OS Account')).paddingOnly(left: 10),
@@ -1946,6 +1943,14 @@ trackpadSpeedDialog(SessionID sessionId, FFI ffi) async {
       [btnClose]);
 }
 
+/// Waldlust(DSK-07 — 부록 A-74): 삭제 확인 본문(미리보기 견본도 쓴다).
+Widget waldDeleteConfirmContent(String title) => waldDialogHeader(
+    badge: waldDialogBadge(waldIcon(Icons.delete_rounded),
+            tone: WaldDialogTone.danger)
+        .marginOnly(right: 14),
+    title: title,
+    text: translate('wald-delete-confirm-tip'));
+
 void deleteConfirmDialog(Function onSubmit, String title) async {
   gFFI.dialogManager.show(
     (setState, close, context) {
@@ -1954,34 +1959,13 @@ void deleteConfirmDialog(Function onSubmit, String title) async {
         close();
       }
 
+      // Waldlust(DSK-07 — 부록 A-74): 빨강 배지 + 제목 + '되돌릴 수 없습니다' 설명, 실행 버튼은 빨강 [삭제].
+      // 기존에는 제목 한 줄과 [취소]·검정 [확인]뿐이었다(본문 없음).
       return CustomAlertDialog(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              waldIcon(Icons.delete_rounded),
-              color: Colors.red,
-            ),
-            Expanded(
-              child: Text(title, overflow: TextOverflow.ellipsis).paddingOnly(
-                left: 10,
-              ),
-            ),
-          ],
-        ),
-        content: SizedBox.shrink(),
+        content: waldDeleteConfirmContent(title),
         actions: [
-          dialogButton(
-            "Cancel",
-            icon: Icon(waldIcon(Icons.close_rounded)),
-            onPressed: close,
-            isOutline: true,
-          ),
-          dialogButton(
-            "OK",
-            icon: Icon(waldIcon(Icons.done_rounded)),
-            onPressed: submit,
-          ),
+          dialogButton("Cancel", onPressed: close, isOutline: true),
+          dialogButton("Delete", onPressed: submit, isDanger: true),
         ],
         onSubmit: submit,
         onCancel: close,
@@ -2113,7 +2097,6 @@ void renameDialog(
 
     return CustomAlertDialog(
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(waldIcon(Icons.edit_rounded), color: MyTheme.accent),
           Text(translate('Rename')).paddingOnly(left: 10),
@@ -2464,7 +2447,6 @@ void addPeersToAbDialog(
 
     return CustomAlertDialog(
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(IconFont.addressBook, color: MyTheme.accent),
           Text(translate('Add to address book')).paddingOnly(left: 10),
@@ -2539,7 +2521,6 @@ void setSharedAbPasswordDialog(String abName, Peer peer) {
 
     return CustomAlertDialog(
       title: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(waldIcon(Icons.key), color: MyTheme.accent),
           Text(translate(peer.password.isEmpty
