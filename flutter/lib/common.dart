@@ -372,11 +372,11 @@ class MyTheme {
   }
 
   // padding bottom depends on actions (mobile has dialogs without actions)
-  // Waldlust(DSK-07 — 부록 A-74): 제목이 있으면 제목과 본문 사이를 12 로 붙인다(기존 24 — 제목이 본문과 따로 놀았다).
+  // Waldlust(DSK-07 — 부록 A-74): 제목이 있으면 제목과 본문 사이를 16 으로 붙인다(기존 24 — 제목이 본문과 따로 놀았다).
   static EdgeInsets dialogContentPadding(
       {bool actions = true, bool title = false}) {
     final double p = dialogPadding;
-    final double top = title ? 12 : p;
+    final double top = title ? 16 : p;
 
     return (isDesktop || isWebDesktop)
         ? EdgeInsets.fromLTRB(p, top, p, actions ? (p - 4) : p)
@@ -1225,6 +1225,11 @@ class CustomAlertDialog extends StatelessWidget {
           title: title,
           // Waldlust(DSK-07 — 부록 A-74): 제목 17·굵게(기존 19 보통).
           titleTextStyle: MyTheme.dialogTitleStyle(context),
+          // 본문 14(기존 16 — Material 2 기본 titleMedium). 제목 17 과 위계가 나뉘고 앱 본문 글자와 같다.
+          // 입력 칸 글자는 TextField 가 따로 정해 그대로다.
+          contentTextStyle:
+              (Theme.of(context).textTheme.titleMedium ?? const TextStyle())
+                  .copyWith(fontSize: 14, height: 1.45),
           content: ConstrainedBox(
             // Waldlust(DSK-07 — 부록 A-74): 데스크탑은 최소 폭을 줘서 짧은 대화상자가 제각각 좁아지지 않게
             // (전체 400 = 352 + 좌우 24). 창이 더 좁으면 부모 제약이 이긴다(수신 전용 홈 폭 280).
