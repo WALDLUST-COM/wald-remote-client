@@ -425,11 +425,17 @@ class _WaldUpdateAboutRowState extends State<WaldUpdateAboutRow> {
               width: 80,
               child: Text(translate('wald-update-latest-label'),
                   style: const TextStyle(color: WaldPalette.neutral500))),
+          // 좁은 정보 창(Windows 수신 전용 — 부록 A-39)에서 '확인하지 못했습니다' 같은 긴 값이 두 줄로 꺾이면
+          // 저작권 줄이 [닫기] 에 가려진다 — 한 줄로 두고 넘치면 조금 줄인다(다른 줄과 같다, wald_app_info.dart).
           Expanded(
-              child: Text(value,
-                  style: status == 'available'
-                      ? const TextStyle(fontWeight: FontWeight.w600)
-                      : null)),
+              child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(value,
+                      softWrap: false,
+                      style: status == 'available'
+                          ? const TextStyle(fontWeight: FontWeight.w600)
+                          : null))),
           if (status == 'available')
             dialogButton('Update', onPressed: showWaldUpdateDialog),
         ]).marginSymmetric(vertical: 4);
