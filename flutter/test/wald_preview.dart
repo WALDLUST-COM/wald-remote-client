@@ -510,12 +510,12 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
 class _DialogPreview extends StatelessWidget {
   const _DialogPreview();
 
-  Widget _sample(String label, Widget dialog, {double height = 230}) => Column(
+  Widget _sample(String label, Widget dialog, {double height = 222}) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
               style: const TextStyle(fontSize: 12, color: Colors.white)),
-          SizedBox(width: 500, height: height, child: dialog),
+          SizedBox(width: 404, height: height, child: dialog),
         ],
       );
 
@@ -528,10 +528,11 @@ class _DialogPreview extends StatelessWidget {
       Container(
         color: MyTheme.dialogScrim,
         child: ListView(padding: const EdgeInsets.all(20), children: [
-          Wrap(spacing: 16, runSpacing: 12, children: [
+          Wrap(spacing: 8, runSpacing: 10, children: [
             _sample(
                 '연결 오류(msgBox error)',
                 CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
                   content: msgboxContent(
                       'error', 'Connection Error', 'Remote desktop is offline'),
                   actions: [
@@ -545,6 +546,7 @@ class _DialogPreview extends StatelessWidget {
             _sample(
                 '삭제 확인(deleteConfirmDialog)',
                 CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
                   content: waldDeleteConfirmContent(
                       translate('wald-delete-peers-{3}-title')),
                   actions: [
@@ -555,12 +557,14 @@ class _DialogPreview extends StatelessWidget {
             _sample(
                 '성공(msgBox success)',
                 CustomAlertDialog(
-                  content: msgboxContent('success', 'Successful', 'Done'),
+                  insetPadding: const EdgeInsets.all(2),
+                  content: msgboxContent('success', 'Successful', ''),
                   actions: [dialogButton('OK', onPressed: noop)],
                 )),
             _sample(
                 '안내(msgBox custom-nocancel-info)',
                 CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
                   content: msgboxContent('custom-nocancel-info', 'Switch Sides',
                       'Please confirm if you want to share your desktop?'),
                   actions: [
@@ -571,6 +575,7 @@ class _DialogPreview extends StatelessWidget {
             _sample(
                 '대기(wait-uac)',
                 CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
                   content:
                       msgboxContent('wait-uac', 'Wait', 'wait_accept_uac_tip'),
                   actions: [dialogButton('OK', onPressed: noop)],
@@ -578,6 +583,7 @@ class _DialogPreview extends StatelessWidget {
             _sample(
                 '배지 없는 메시지(connecting)',
                 CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
                   content: msgboxContent('connecting', 'Connecting...',
                       'Connection in progress. Please wait.'),
                   actions: [
@@ -587,6 +593,7 @@ class _DialogPreview extends StatelessWidget {
             _sample(
                 '제목 + 입력(비밀번호)',
                 CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
                   title: Row(children: [
                     Icon(waldIcon(Icons.password_rounded),
                         color: MyTheme.accent),
@@ -608,10 +615,11 @@ class _DialogPreview extends StatelessWidget {
                         icon: Icon(waldIcon(Icons.done_rounded))),
                   ],
                 ),
-                height: 250),
+                height: 240),
             _sample(
                 '제목 + 본문(업데이트)',
                 CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
                   title: Text(translate('wald-update-dialog-title')),
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -628,7 +636,7 @@ class _DialogPreview extends StatelessWidget {
                     dialogButton('Update', onPressed: noop),
                   ],
                 ),
-                height: 250),
+                height: 240),
           ]),
         ]),
       ),

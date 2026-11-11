@@ -411,8 +411,9 @@ class MyTheme {
   }
 
   // Waldlust(DSK-07): 어드민처럼 버튼 사이 간격을 8 로(기존 24).
+  // 부록 A-74: AlertDialog 는 이 값의 가로 합을 반으로 나눠 간격으로 쓴다 — left 8 은 실제 4 였다. 16 을 줘야 8 이 된다.
   static EdgeInsets dialogButtonPadding = (isDesktop || isWebDesktop)
-      ? EdgeInsets.only(left: 8)
+      ? EdgeInsets.only(left: 16)
       : EdgeInsets.only(left: dialogPadding / 3);
 
   static ScrollbarThemeData scrollbarTheme = ScrollbarThemeData(
