@@ -124,12 +124,28 @@ Future<void> showWaldAppInfo() async {
           // Waldlust(D35): 이 앱이 보내는 정보·오픈소스 고지(자사 공개 페이지).
           link(translate('Privacy Statement'), kWaldPrivacyUrl),
           link(translate('Open source notices'), kWaldOssUrl),
-          Text(
-            // Waldlust(D35 — AGPL §5): 데스크탑 설정 '정보'의 저작권 줄과 같다.
-            'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Ltd.\n'
-            'Modifications © 2026 Waldlust Co., Ltd.\n'
-            'Licensed under the GNU AGPL-3.0, without any warranty.',
-            style: const TextStyle(fontSize: 11, color: WaldPalette.neutral500),
+          // Waldlust(D35 — AGPL §5): 데스크탑 설정 '정보'의 저작권 줄과 같다.
+          // 좁은 데스크탑 창에서는 셋째 줄이 두 줄로 꺾여 [닫기] 뒤로 가려진다 — 줄마다 한 줄로 두고 넘치면 줄인다.
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (final line in [
+                'Copyright © ${DateTime.now().toString().substring(0, 4)} Purslane Ltd.',
+                'Modifications © 2026 Waldlust Co., Ltd.',
+                'Licensed under the GNU AGPL-3.0, without any warranty.',
+              ])
+                narrow
+                    ? FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerLeft,
+                        child: Text(line,
+                            softWrap: false,
+                            style: const TextStyle(
+                                fontSize: 11, color: WaldPalette.neutral500)))
+                    : Text(line,
+                        style: const TextStyle(
+                            fontSize: 11, color: WaldPalette.neutral500)),
+            ],
           ).marginOnly(top: 12),
         ],
       ),
