@@ -16,7 +16,8 @@ import 'package:flutter_hbb/common/wald_theme.dart';
 import 'package:flutter_hbb/desktop/widgets/refresh_wrapper.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
 import 'package:flutter_hbb/desktop/widgets/wald_mobile_actions.dart';
-import 'package:flutter_hbb/desktop/widgets/wald_update.dart' show waldUpdateSupported;
+import 'package:flutter_hbb/desktop/widgets/wald_update.dart'
+    show waldUpdateSupported;
 import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/peer_tab_model.dart';
@@ -371,13 +372,33 @@ class MyTheme {
   }
 
   // padding bottom depends on actions (mobile has dialogs without actions)
-  static EdgeInsets dialogContentPadding({bool actions = true}) {
+  // Waldlust(DSK-07 — 부록 A-74): 제목이 있으면 제목과 본문 사이를 16 으로 붙인다(기존 24 — 제목이 본문과 따로 놀았다).
+  static EdgeInsets dialogContentPadding(
+      {bool actions = true, bool title = false}) {
     final double p = dialogPadding;
+    final double top = title ? 16 : p;
 
     return (isDesktop || isWebDesktop)
-        ? EdgeInsets.fromLTRB(p, p, p, actions ? (p - 4) : p)
-        : EdgeInsets.fromLTRB(p, p, p, actions ? (p / 2) : p);
+        ? EdgeInsets.fromLTRB(p, top, p, actions ? (p - 4) : p)
+        : EdgeInsets.fromLTRB(p, top, p, actions ? (p / 2) : p);
   }
+
+  // Waldlust(DSK-07 — 부록 A-74): 대화상자 뒤 배경(기존 검정 12% — 대화상자가 떠 보이지 않았다).
+  static const Color dialogScrim = Color(0x52000000);
+  static const Color dialogScrimDark = Color(0x8A000000);
+
+  // Waldlust(DSK-07 — 부록 A-74): 대화상자 제목 — 17·굵게. 본문(14~15)과 위계를 나눈다.
+  static TextStyle dialogTitleStyle(BuildContext context) =>
+      (Theme.of(context).textTheme.titleLarge ?? const TextStyle())
+          .copyWith(fontSize: 17, fontWeight: FontWeight.w600, height: 1.35);
+
+  // Waldlust(DSK-07 — 부록 A-74): 대화상자 보조 설명 글자(회색 14).
+  static TextStyle dialogBodyStyle(BuildContext context) => TextStyle(
+      fontSize: 14,
+      height: 1.45,
+      color: Theme.of(context).brightness == Brightness.light
+          ? WaldPalette.neutral600
+          : WaldPalette.neutral400);
 
   static EdgeInsets dialogActionsPadding() {
     final double p = dialogPadding;
@@ -390,8 +411,9 @@ class MyTheme {
   }
 
   // Waldlust(DSK-07): 어드민처럼 버튼 사이 간격을 8 로(기존 24).
+  // 부록 A-74: AlertDialog 는 이 값의 가로 합을 반으로 나눠 간격으로 쓴다 — left 8 은 실제 4 였다. 16 을 줘야 8 이 된다.
   static EdgeInsets dialogButtonPadding = (isDesktop || isWebDesktop)
-      ? EdgeInsets.only(left: 8)
+      ? EdgeInsets.only(left: 16)
       : EdgeInsets.only(left: dialogPadding / 3);
 
   static ScrollbarThemeData scrollbarTheme = ScrollbarThemeData(
@@ -431,7 +453,8 @@ class MyTheme {
     primaryColor: WaldPalette.neutral900,
     textSelectionTheme: const TextSelectionThemeData(
       cursorColor: WaldPalette.neutral900,
-      selectionColor: WaldPalette.blue200, // 부록 A-53: neutral200 은 입력칸 바탕(neutral100)과 구분되지 않았다.
+      selectionColor: WaldPalette
+          .blue200, // 부록 A-53: neutral200 은 입력칸 바탕(neutral100)과 구분되지 않았다.
       selectionHandleColor: WaldPalette.neutral900,
     ),
     // Waldlust(DSK-07): Android 앱바도 어드민 톤 — 흰 바탕·진한 글자·아래 경계선, 상태 표시줄도
@@ -916,10 +939,23 @@ class OverlayDialogManager {
             }
             innerClicked = false;
           },
-          child: Container(
-              color: Theme.of(context).brightness == Brightness.light
-                  ? Colors.black12
-                  : Colors.black45,
+          // Waldlust(DSK-07 — 부록 A-74): 배경을 더 어둡게, 0.14초 동안 옅게 → 진하게·살짝 커지며 나타난다.
+          // StatefulBuilder 바깥에 둬서 setState 로 다시 그려도 전환이 되풀이되지 않는다.
+          child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: useAnimation ? 0.0 : 1.0, end: 1.0),
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOutCubic,
+              builder: (context, t, child) {
+                final scrim = Theme.of(context).brightness == Brightness.light
+                    ? MyTheme.dialogScrim
+                    : MyTheme.dialogScrimDark;
+                return Container(
+                    color: scrim.withOpacity(scrim.opacity * t),
+                    child: Opacity(
+                        opacity: t,
+                        child: Transform.scale(
+                            scale: 0.97 + 0.03 * t, child: child)));
+              },
               child: StatefulBuilder(builder: (context, setState) {
                 return Listener(
                   onPointerUp: (_) => innerClicked = true,
@@ -955,6 +991,8 @@ class OverlayDialogManager {
       }
 
       return CustomAlertDialog(
+        // Waldlust(DSK-07 — 부록 A-74): 진행 표시 상자는 좁게 둔다(공통 최소 폭 352 를 받지 않는다).
+        contentBoxConstraints: const BoxConstraints(maxWidth: 240),
         content: Container(
             constraints: const BoxConstraints(maxWidth: 240),
             child: Column(
@@ -1120,6 +1158,9 @@ void showToast(String text,
 // - Remove argument "contentPadding", no need for it, all should look the same.
 // - Remove "required" for argument "content". See simple confirm dialog "delete peer", only title and actions are used. No need to "content: SizedBox.shrink()".
 // - Make dead code alive, transform arguments "onSubmit" and "onCancel" into correspondenting buttons "ConfirmOkButton", "CancelButton".
+/// Waldlust(DSK-07 — 부록 A-74): 데스크탑 대화상자 본문 최소 폭.
+const double kWaldDialogMinContentWidth = 352;
+
 class CustomAlertDialog extends StatelessWidget {
   const CustomAlertDialog(
       {Key? key,
@@ -1182,14 +1223,29 @@ class CustomAlertDialog extends StatelessWidget {
       child: AlertDialog(
           scrollable: true,
           title: title,
+          // Waldlust(DSK-07 — 부록 A-74): 제목 17·굵게(기존 19 보통).
+          titleTextStyle: MyTheme.dialogTitleStyle(context),
+          // 본문 14(기존 16 — Material 2 기본 titleMedium). 제목 17 과 위계가 나뉘고 앱 본문 글자와 같다.
+          // 입력 칸 글자는 TextField 가 따로 정해 그대로다. 줄 높이는 정하지 않는다 — 여기서 정하면 글자 크기를
+          // 따로 준 본문(정보 창의 11px 저작권 줄 등)까지 줄이 높아져 좁은 창에서 넘친다.
+          contentTextStyle:
+              (Theme.of(context).textTheme.titleMedium ?? const TextStyle())
+                  .copyWith(fontSize: 14),
           content: ConstrainedBox(
-            constraints: contentBoxConstraints,
+            // Waldlust(DSK-07 — 부록 A-74): 데스크탑은 최소 폭을 줘서 짧은 대화상자가 제각각 좁아지지 않게
+            // (전체 400 = 352 + 좌우 24). 창이 더 좁으면 부모 제약이 이긴다(수신 전용 홈 폭 280).
+            constraints: isDesktop &&
+                    contentBoxConstraints.minWidth == 0 &&
+                    contentBoxConstraints.maxWidth >= kWaldDialogMinContentWidth
+                ? contentBoxConstraints.copyWith(
+                    minWidth: kWaldDialogMinContentWidth)
+                : contentBoxConstraints,
             child: content,
           ),
           actions: actions,
           titlePadding: titlePadding ?? MyTheme.dialogTitlePadding(),
-          contentPadding:
-              MyTheme.dialogContentPadding(actions: actions is List),
+          contentPadding: MyTheme.dialogContentPadding(
+              actions: actions is List, title: title != null),
           actionsPadding: MyTheme.dialogActionsPadding(),
           buttonPadding: MyTheme.dialogButtonPadding,
           insetPadding: insetPadding),
@@ -1197,13 +1253,13 @@ class CustomAlertDialog extends StatelessWidget {
   }
 }
 
-Widget createDialogContent(String text) {
+Widget createDialogContent(String text, {TextStyle? style}) {
   final RegExp linkRegExp = RegExp(r'(https?://[^\s]+)');
   bool hasLink = linkRegExp.hasMatch(text);
 
   // Early return: no link, use default theme color
   if (!hasLink) {
-    return SelectableText(text, style: const TextStyle(fontSize: 15));
+    return SelectableText(text, style: style ?? const TextStyle(fontSize: 15));
   }
 
   final List<TextSpan> spans = [];
@@ -1285,7 +1341,16 @@ void msgBox(SessionID sessionId, String type, String title, String text,
         submitOnTimeout: true,
       );
     } else {
-      btn = dialogButton('OK', onPressed: submit);
+      // Waldlust(DSK-07 — 부록 A-74): 오류 창의 이 버튼은 원격 창을 닫는다 — [닫기]로 적는다(기존 [확인]).
+      // [다시 연결]이 함께 있으면 보조(테두리) 버튼으로 내려 주요 버튼이 둘이 되지 않게 한다.
+      final closes = type.contains("error") &&
+          !type.contains("custom") &&
+          onSubmit == null;
+      final withReconnect = reconnect != null &&
+          title == "Connection Error" &&
+          reconnectTimeout != null;
+      btn = dialogButton(closes ? 'Close' : 'OK',
+          onPressed: submit, isOutline: closes && withReconnect);
     }
     buttons.insert(0, btn);
   }
@@ -1319,7 +1384,8 @@ void msgBox(SessionID sessionId, String type, String title, String text,
                 }
               : null,
         ));
-    buttons.insert(0, button);
+    // Waldlust(DSK-07 — 부록 A-74): [닫기] [다시 연결] 순서(기존 [다시 연결] [확인]). Enter 는 그대로 닫기다.
+    buttons.add(button);
   }
   if (link.isNotEmpty) {
     buttons.insert(0, dialogButton('JumpLink', onPressed: jumplink));
@@ -1336,40 +1402,66 @@ void msgBox(SessionID sessionId, String type, String title, String text,
   );
 }
 
-// Waldlust(DSK-07): 어드민 톤 상태색(입력·안내 회색, 성공 초록, 오류 빨강 — 부록 A-27 전에는 입력·안내가 파랑).
-Color? _msgboxColor(String type) {
-  if (type == "input-password" || type == "custom-os-password") {
-    return WaldPalette.neutral700;
+/// Waldlust(DSK-07 — 부록 A-74): 대화상자 상태 배지 — 옅은 색 원 안에 작은 아이콘.
+/// 기존에는 50px 가는 선 아이콘이 그대로 놓여 있었다.
+enum WaldDialogTone { neutral, danger, success, warning }
+
+Widget waldDialogBadge(IconData icon,
+    {WaldDialogTone tone = WaldDialogTone.neutral, double size = 40}) {
+  late final Color bg;
+  late final Color fg;
+  switch (tone) {
+    case WaldDialogTone.danger:
+      bg = WaldPalette.red50;
+      fg = WaldPalette.red600;
+      break;
+    case WaldDialogTone.success:
+      bg = WaldPalette.green50;
+      fg = WaldPalette.green600;
+      break;
+    case WaldDialogTone.warning:
+      bg = WaldPalette.amber50;
+      fg = WaldPalette.amber700;
+      break;
+    case WaldDialogTone.neutral:
+      bg = WaldPalette.neutral100;
+      fg = WaldPalette.neutral700;
+      break;
   }
-  if (type.contains("success")) {
-    return WaldPalette.green600;
-  }
-  if (type.contains("error") || type == "re-input-password") {
-    return WaldPalette.red600;
-  }
-  return WaldPalette.neutral700;
+  return Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+    alignment: Alignment.center,
+    child: Icon(icon, size: size / 2, color: fg),
+  );
 }
 
 Widget msgboxIcon(String type) {
   IconData? iconData;
+  var tone = WaldDialogTone.neutral;
   if (type.contains("error") || type == "re-input-password") {
     iconData = waldIcon(Icons.cancel);
+    tone = WaldDialogTone.danger;
   }
   if (type.contains("success")) {
     iconData = waldIcon(Icons.check_circle);
+    tone = WaldDialogTone.success;
   }
   if (type == "wait-uac" || type == "wait-remote-accept-nook") {
     iconData = waldIcon(Icons.hourglass_top);
+    tone = WaldDialogTone.warning;
   }
   if (type == 'on-uac' || type == 'on-foreground-elevated') {
     iconData = waldIcon(Icons.admin_panel_settings);
+    tone = WaldDialogTone.warning;
   }
   if (type.contains('info')) {
     iconData = waldIcon(Icons.info);
+    tone = WaldDialogTone.neutral;
   }
   if (iconData != null) {
-    return Icon(iconData, size: 50, color: _msgboxColor(type))
-        .marginOnly(right: 16);
+    return waldDialogBadge(iconData, tone: tone).marginOnly(right: 14);
   }
 
   return Offstage();
@@ -1397,33 +1489,48 @@ Widget msgboxContent(String type, String title, String text) {
     return text;
   }
 
-  return Row(
-    children: [
-      msgboxIcon(type),
-      Expanded(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              translate(title),
-              style: TextStyle(fontSize: 21),
-            ).marginOnly(bottom: 10),
-            createDialogContent(translateText(text)),
-          ],
+  final icon = msgboxIcon(type);
+  return waldDialogHeader(
+      badge: icon is Offstage ? null : icon,
+      title: translate(title),
+      text: translateText(text));
+}
+
+/// Waldlust(DSK-07 — 부록 A-74): 대화상자 머리 — (배지) + 제목 17·굵게 + 설명 14·회색.
+/// 배지는 제목 첫 줄에 맞춰 위에 붙는다. 메시지 상자·삭제 확인이 함께 쓴다.
+Widget waldDialogHeader({Widget? badge, required String title, String? text}) {
+  final body = text ?? '';
+  return Builder(
+    builder: (context) => Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (badge != null) badge,
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: MyTheme.dialogTitleStyle(context),
+              ).marginOnly(
+                  top: badge != null ? 8 : 0, bottom: body.isEmpty ? 0 : 6),
+              if (body.isNotEmpty)
+                createDialogContent(body,
+                    style: MyTheme.dialogBodyStyle(context)),
+            ],
+          ),
         ),
-      ),
-    ],
-  ).marginOnly(bottom: 12);
+      ],
+    ).marginOnly(bottom: 8),
+  );
 }
 
 void msgBoxCommon(OverlayDialogManager dialogManager, String title,
     Widget content, List<Widget> buttons,
     {bool hasCancel = true}) {
   dialogManager.show((setState, close, context) => CustomAlertDialog(
-        title: Text(
-          translate(title),
-          style: TextStyle(fontSize: 21),
-        ),
+        // Waldlust(DSK-07 — 부록 A-74): 제목 크기는 CustomAlertDialog 공통(17·굵게)을 따른다(기존 21).
+        title: Text(translate(title)),
         content: content,
         actions: buttons,
         onCancel: hasCancel ? close : null,
@@ -3018,9 +3125,21 @@ class ServerConfig {
 Widget dialogButton(String text,
     {required VoidCallback? onPressed,
     bool isOutline = false,
+    bool isDanger = false,
     Widget? icon,
     TextStyle? style,
     ButtonStyle? buttonStyle}) {
+  // Waldlust(DSK-07 — 부록 A-74): 뜻 없는 ✓(확인)·✕(취소) 아이콘은 뺀다 — 대화상자마다 있고 없고가 달랐다.
+  // 동작을 가리키는 아이콘(다시 연결·파일 전송 등)은 그대로 둔다.
+  if (icon is Icon &&
+      (icon.icon == Icons.done_rounded ||
+          icon.icon == Icons.close_rounded ||
+          icon.icon == waldIcon(Icons.done_rounded) ||
+          icon.icon == waldIcon(Icons.close_rounded))) {
+    icon = null;
+  }
+  // Waldlust(DSK-07 — 부록 A-74): 삭제처럼 되돌릴 수 없는 동작은 빨강 버튼.
+  if (isDanger) buttonStyle = waldDangerStyle().merge(buttonStyle);
   // Waldlust(DSK-07): Android 대화상자도 데스크탑과 같은 버튼(주요 검정·보조 테두리·높이 32).
   if (isDesktop || isWebDesktop || isMobile) {
     // Waldlust(DSK-07): 한글 라벨이 위로 뜨지 않게 줄 상자를 고정한다.

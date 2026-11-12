@@ -468,7 +468,11 @@ class _PeerTabPageState extends State<PeerTabPage>
             if (model.currentTab != 3) showToast(translate('Successful'));
           }
 
-          deleteConfirmDialog(onSubmit, translate('Delete'));
+          // Waldlust(DSK-07 — 부록 A-74): 몇 대를 지우는지 제목에 적는다(기존 제목 '삭제').
+          deleteConfirmDialog(
+              onSubmit,
+              translate(
+                  'wald-delete-peers-{${model.selectedPeers.length}}-title'));
         },
         child: Icon(waldIcon(Icons.delete), color: Colors.red));
   }
@@ -772,7 +776,8 @@ class _PeerSearchBarState extends State<PeerSearchBar> {
     final focused = _focused;
     final focusNode = _focusNode;
     return Obx(() => Container(
-          width: widget.openWidth ?? (stateGlobal.isPortrait.isTrue ? 120 : 140),
+          width:
+              widget.openWidth ?? (stateGlobal.isPortrait.isTrue ? 120 : 140),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.background,
             borderRadius: BorderRadius.circular(6),

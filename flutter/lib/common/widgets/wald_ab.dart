@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/formatter/id_formatter.dart';
+import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/common/wald_brand.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/common/widgets/peer_card.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_hbb/models/peer_tab_model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
 import 'package:flutter_hbb/models/wald_favorites.dart';
 import 'package:flutter_hbb/models/wald_peer_names.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 
 /// Waldlust(DSK-06): 주소록 기기 이름 편집.
@@ -68,8 +70,21 @@ Widget waldEditButton(Peer peer, {BaseAb? ab}) {
 /// Waldlust(DSK-04): 주소록·최근 세션·즐겨찾기 카드 오른쪽 버튼 — 연결, 파일 전송, (권한이 있으면) 이름 편집,
 /// 즐겨찾기 별(부록 A-53), 그다음 업스트림 더보기 메뉴. 그리드 카드는 이름과 한 줄을 나눠 쓰므로 버튼을 작게 둔다.
 /// 최근 세션·즐겨찾기(부록 A-17)의 이름 편집은 어드민 기기만, '전체' 주소록의 권한으로 한다(DSK-06).
+///
+/// 부록 A-75: [hover] 를 주면(데스크탑) 연결·파일 전송·더보기만 늘 보이고 이름 편집·별은 마우스를 올린 줄에만
+/// 보인다(즐겨찾기한 기기의 노란 별은 늘 보인다). 자리는 그대로 차지해 줄이 흔들리지 않는다. 마우스가 없는
+/// 화면(Android 가로 등)은 [hover] 를 주지 않아 전부 보인다. 순서: 이름 편집, 별, 연결, 파일 전송, 더보기.
 Widget waldAbCardActions(
-    BuildContext context, Peer peer, PeerTabIndex tab, Widget more) {
+    BuildContext context, Peer peer, PeerTabIndex tab, Widget more,
+    {RxBool? hover}) {
+  Widget onHover(Widget child) => hover == null
+      ? child
+      : Obx(() => Visibility(
+          visible: hover.value,
+          maintainSize: true,
+          maintainAnimation: true,
+          maintainState: true,
+          child: child));
   Widget? edit;
   if (tab == PeerTabIndex.ab) {
     if (waldCanRename(gFFI.abModel.current)) edit = waldEditButton(peer);
@@ -77,15 +92,15 @@ Widget waldAbCardActions(
     final all = waldRenameAllAb(peer);
     if (all != null) edit = waldEditButton(peer, ab: all);
   }
+  // 부록 A-75: 숨는 버튼(이름 편집·별)을 왼쪽에 둔다 — 오른쪽에 두면 숨었을 때 줄 끝에 빈 자리가 남는다.
+  // 더보기(⋮)는 늘 보인다(줄 끝 — 메뉴로 가는 길이 오른쪽 클릭뿐이면 찾기 어렵다).
   return Row(mainAxisSize: MainAxisSize.min, children: [
+    if (edit != null) onHover(edit),
+    _waldFavButton(peer, hover: hover),
     _waldCardButton(Icons.screen_share_outlined, translate('Connect'),
         () => connectInPeerTab(context, peer, tab)),
-    _waldCardButton(
-        Icons.folder_outlined,
-        translate('Transfer file'),
+    _waldCardButton(Icons.folder_outlined, translate('Transfer file'),
         () => connectInPeerTab(context, peer, tab, isFileTransfer: true)),
-    if (edit != null) edit,
-    _waldFavButton(peer),
     more,
   ]);
 }
@@ -105,15 +120,24 @@ BaseAb? waldRenameAllAb(Peer peer) {
 
 /// Waldlust(DSK-04, 부록 A-53): 즐겨찾기 별 — 즐겨찾기면 노란 채운 별, 아니면 회색 외곽선 별.
 /// Lucide 에는 채운 별이 없어(`Icons.star` 도 외곽선으로 바뀐다) 채운 별은 표에 없는 `Icons.star_rounded`(Material)다.
-Widget _waldFavButton(Peer peer) {
+Widget _waldFavButton(Peer peer, {RxBool? hover}) {
   WaldFavorites.ensureLoaded();
   return Obx(() {
     final fav = WaldFavorites.ids.contains(peer.id);
-    return _waldCardButton(
+    final button = _waldCardButton(
         fav ? Icons.star_rounded : Icons.star_outline,
         translate(fav ? 'Remove from Favorites' : 'Add to Favorites'),
         () => WaldFavorites.toggle(peer.id),
         color: fav ? WaldPalette.amber500 : WaldPalette.neutral500);
+    // 부록 A-75: 회색 외곽선 별은 마우스를 올린 줄에만.
+    return hover == null
+        ? button
+        : Visibility(
+            visible: fav || hover.value,
+            maintainSize: true,
+            maintainAnimation: true,
+            maintainState: true,
+            child: button);
   });
 }
 
@@ -135,13 +159,49 @@ Widget _waldCardButton(IconData icon, String tooltip, VoidCallback onTap,
 /// Waldlust(DSK-05, 부록 A-16~A-18): 카드 부제 = 디바이스 · ID(A-17 에서 맨 앞 브랜드를, A-18 에서 끝의 호스트네임을 뺐다).
 /// 디바이스가 없으면 '미지정'. 어드민 정보가 없는 기기(로그아웃, 권한 밖 — waldBrand 가 null)는 null → 업스트림
 /// 부제(username@hostname). 최근접속목록·즐겨찾기는 `WaldPeerNames.apply` 가 값을 채운다.
+///
+/// 부록 A-75: 이름이 없는 기기는 제목이 곧 ID 라 부제에서 ID 를 되풀이하지 않는다(기존 '미지정 · ID' — 같은 ID 가
+/// 두 줄). 디바이스가 없을 때는 '디바이스 미지정'으로 적는다 — 왼쪽 브랜드 목록의 '미지정'(브랜드 없음)과
+/// 같은 말이라 무엇이 미지정인지 알 수 없었다.
 String? waldPeerSubtitle(Peer peer) {
   if (peer.waldBrand == null) return null;
   final device = peer.waldDevice;
   return [
-    device == null || device.isEmpty ? translate('Unassigned') : device,
-    formatID(peer.id),
+    device == null || device.isEmpty
+        ? translate('wald-device-unassigned')
+        : device,
+    if (peer.alias.isNotEmpty) formatID(peer.id),
   ].join(' · ');
+}
+
+/// Waldlust(DSK-04 — 부록 A-75): 기기 아바타 — 회색 바탕 + 회색 플랫폼 그림. 기존에는 ID 로 만든 임의의 색
+/// (`str2color`)이라 화면에서 가장 튀는데 뜻이 없었고, 플랫폼을 모르는 기기는 그림 없이 빈 칸이었다.
+const waldPeerAvatarBg = WaldPalette.neutral200;
+const waldPeerAvatarFg = WaldPalette.neutral600;
+
+Widget waldPlatformIcon(String platform, {required double size}) {
+  if (platform.isEmpty) {
+    // 플랫폼을 모르는 기기(한 번도 접속하지 않았거나 어드민 정보가 없음)는 모니터 그림.
+    return SizedBox(
+        width: size,
+        height: size,
+        child: Icon(waldIcon(Icons.computer),
+            size: size * 0.8, color: WaldPalette.neutral400));
+  }
+  // 대응은 common.dart getPlatformImage 와 같다.
+  final String name;
+  if (platform == kPeerPlatformMacOS) {
+    name = 'mac';
+  } else if (platform != kPeerPlatformLinux &&
+      platform != kPeerPlatformAndroid) {
+    name = 'win';
+  } else {
+    name = platform.toLowerCase();
+  }
+  return SvgPicture.asset('assets/$name.svg',
+      height: size,
+      width: size,
+      colorFilter: const ColorFilter.mode(waldPeerAvatarFg, BlendMode.srcIn));
 }
 
 /// Waldlust(DSK-04): 주소록 왼쪽 패널에 선택 드롭다운·태그 대신 브랜드 목록을 둔다(`address_book.dart`).
@@ -242,7 +302,8 @@ class _WaldAbCountBar extends StatelessWidget {
     Widget count(Color color, String label, int n) => Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            CircleAvatar(radius: 3, backgroundColor: color).marginOnly(right: 5),
+            CircleAvatar(radius: 3, backgroundColor: color)
+                .marginOnly(right: 5),
             Text('${translate(label)} $n', style: style),
           ],
         ).marginOnly(left: 14);
@@ -298,7 +359,8 @@ class WaldAbBrandSelector extends StatelessWidget {
           ),
           child: Row(children: [
             if (isAll)
-              Icon(waldIcon(Icons.apps_rounded), color: MyTheme.accent, size: 19)
+              Icon(waldIcon(Icons.apps_rounded),
+                      color: MyTheme.accent, size: 19)
                   .marginOnly(right: 6),
             Expanded(
                 child: Text(abModel.translatedName(name),
@@ -358,8 +420,8 @@ class WaldAbBrandList extends StatelessWidget {
       final abModel = gFFI.abModel;
       final names = abModel.addressBookNames()
         ..sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
-      var allIndex = names.indexWhere((e) =>
-          abModel.addressbooks[e]?.sharedProfile()?.guid == _kAllAbGuid);
+      var allIndex = names.indexWhere(
+          (e) => abModel.addressbooks[e]?.sharedProfile()?.guid == _kAllAbGuid);
       // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드는 '전체'를 보이지 않는다 — 내용이 그 브랜드와 같다.
       if (isWaldBrandBuild && allIndex >= 0 && names.length > 1) {
         names.removeAt(allIndex);

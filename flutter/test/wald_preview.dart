@@ -12,13 +12,23 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
+import 'package:flutter_hbb/common/wald_icons.dart';
+import 'package:flutter_hbb/common/wald_theme.dart';
+import 'package:flutter_hbb/common/widgets/dialog.dart';
+import 'package:flutter_hbb/common/widgets/login.dart';
+import 'package:flutter_hbb/common/widgets/wald_ab.dart';
+import 'package:flutter_hbb/common/widgets/peer_card.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/file_manager_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
+import 'package:flutter_hbb/desktop/widgets/wald_update.dart';
 import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/file_model.dart';
 import 'package:flutter_hbb/models/model.dart';
+import 'package:flutter_hbb/models/wald_favorites.dart';
+import 'package:flutter_hbb/models/peer_tab_model.dart';
+import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -64,7 +74,25 @@ void main() async {
       unselectedIcon: Icons.widgets_outlined,
       closable: false,
       page: const _GalleryPreview()));
-  controller.jumpTo(0);
+  controller.add(TabInfo(
+      key: 'dialogs',
+      label: '대화상자',
+      selectedIcon: Icons.chat_bubble,
+      unselectedIcon: Icons.chat_bubble_outline,
+      closable: false,
+      page: const _DialogPreview()));
+  controller.add(TabInfo(
+      key: 'peers',
+      label: '기기 줄',
+      selectedIcon: Icons.view_list,
+      unselectedIcon: Icons.view_list_outlined,
+      closable: false,
+      page: const _PeerRowPreview()));
+  // WALD_PREVIEW_TAB=dialogs 처럼 처음 열 탭을 고른다(화면 캡처용).
+  final first = Platform.environment['WALD_PREVIEW_TAB'];
+  final firstIndex =
+      controller.state.value.tabs.indexWhere((t) => t.key == first);
+  controller.jumpTo(firstIndex < 0 ? 0 : firstIndex);
 
   runApp(GetMaterialApp(
       debugShowCheckedModeBanner: false,
@@ -488,6 +516,268 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
             const Tooltip(message: '툴팁 예시', child: Text('툴팁(마우스 올리기)')),
           ]),
         ],
+      ),
+    );
+  }
+}
+
+/// Waldlust(DSK-07 — 부록 A-74): 대화상자 견본. 실제 대화상자 위젯(CustomAlertDialog)을 누르지 않고
+/// 한 화면에 늘어놓는다. 배경은 대화상자 뒤 배경색(MyTheme.dialogScrim)이다. 버튼은 동작하지 않는다.
+class _DialogPreview extends StatelessWidget {
+  const _DialogPreview();
+
+  Widget _sample(String label, Widget dialog, {double height = 204}) => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: const TextStyle(fontSize: 12, color: Colors.white)),
+          SizedBox(width: 404, height: height, child: dialog),
+        ],
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    void noop() {}
+    final pw = TextEditingController(text: 'abcd1234');
+    return Stack(children: [
+      Container(color: Theme.of(context).scaffoldBackgroundColor),
+      Container(
+        color: MyTheme.dialogScrim,
+        child: ListView(padding: const EdgeInsets.all(20), children: [
+          Wrap(spacing: 8, runSpacing: 10, children: [
+            _sample(
+                '연결 오류(msgBox error)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content: msgboxContent(
+                      'error', 'Connection Error', 'Remote desktop is offline'),
+                  actions: [
+                    dialogButton('Close', onPressed: noop, isOutline: true),
+                    dialogButton('Reconnect', onPressed: noop),
+                  ],
+                )),
+            _sample(
+                '삭제 확인(deleteConfirmDialog)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content: waldDeleteConfirmContent(
+                      translate('wald-delete-peers-{3}-title')),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Delete', onPressed: noop, isDanger: true),
+                  ],
+                )),
+            _sample(
+                '성공(msgBox success)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content: msgboxContent('success', 'Successful', ''),
+                  actions: [dialogButton('OK', onPressed: noop)],
+                )),
+            _sample(
+                '안내(msgBox custom-nocancel-info)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content: msgboxContent('custom-nocancel-info', 'Switch Sides',
+                      'Please confirm if you want to share your desktop?'),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('OK', onPressed: noop),
+                  ],
+                )),
+            _sample(
+                '대기(wait-uac)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content:
+                      msgboxContent('wait-uac', 'Wait', 'wait_accept_uac_tip'),
+                  actions: [dialogButton('OK', onPressed: noop)],
+                )),
+            _sample(
+                '배지 없는 메시지(connecting)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content: msgboxContent('connecting', 'Connecting...',
+                      'Connection in progress. Please wait.'),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true)
+                  ],
+                )),
+            _sample(
+                '접속 비밀번호(_connectDialog)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content: Column(mainAxisSize: MainAxisSize.min, children: [
+                    waldConnectPasswordHeader(),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: pw,
+                      obscureText: true,
+                      decoration:
+                          InputDecoration(labelText: translate('Password')),
+                    ),
+                    CheckboxListTile(
+                      contentPadding: const EdgeInsets.all(0),
+                      dense: true,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(translate('Remember password')),
+                      value: true,
+                      onChanged: (_) {},
+                    ),
+                  ]),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Connect', onPressed: noop),
+                  ],
+                ),
+                height: 290),
+            _sample(
+                '업데이트(wald_update)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      waldDialogHeader(
+                          badge: waldDialogBadge(waldIcon(Icons.download))
+                              .marginOnly(right: 14),
+                          title: translate('wald-update-dialog-title'),
+                          text: translate('wald-update-confirm-tip')),
+                      waldUpdateVersionBox('1.5.11', '1.5.12'),
+                      Text(translate('wald-update-windows-{2}-tip'),
+                              style: MyTheme.dialogBodyStyle(context))
+                          .marginOnly(top: 10),
+                    ],
+                  ),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Update', onPressed: noop),
+                  ],
+                ),
+                height: 290),
+            _sample(
+                '파일 덮어쓰기(showFileConfirmDialog)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  contentBoxConstraints:
+                      const BoxConstraints(minWidth: 352, maxWidth: 352),
+                  content: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        waldDialogHeader(
+                            badge: waldDialogBadge(
+                                    waldIcon(Icons.warning_rounded),
+                                    tone: WaldDialogTone.warning)
+                                .marginOnly(right: 14),
+                            title: translate('Overwrite'),
+                            text: translate(
+                                'This file exists, skip or overwrite this file?')),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                              color: WaldPalette.neutral100,
+                              borderRadius:
+                                  BorderRadius.circular(WaldSize.radius)),
+                          child: const Text('menu-2026-11.xlsx'),
+                        ),
+                      ]),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Skip',
+                        onPressed: noop,
+                        isOutline: true,
+                        icon: Icon(waldIcon(Icons.navigate_next_rounded))),
+                    dialogButton('Overwrite', onPressed: noop),
+                  ],
+                ),
+                height: 290),
+            _sample(
+                '로그인(loginDialog)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  title: Text(translate('Login')),
+                  content: LoginWidgetUserPass(
+                    username: TextEditingController(text: 'staff01'),
+                    pass: pw,
+                    usernameMsg: null,
+                    passMsg: null,
+                    isInProgress: false,
+                    curOP: ''.obs,
+                    onLogin: noop,
+                  ),
+                ),
+                height: 290),
+          ]),
+        ]),
+      ),
+    ]);
+  }
+}
+
+/// Waldlust(DSK-04 — 부록 A-75): 기기 줄 견본. 가짜 기기로 주소록 목록 줄(AddressBookPeerCard)을 그린다 —
+/// 로그인·서버 없이 부제·아바타·줄 버튼을 본다. 누르지 않는다(연결을 시도한다).
+/// 마지막 묶음은 마우스를 올린 줄의 버튼 모습(hover = true)이다.
+class _PeerRowPreview extends StatelessWidget {
+  const _PeerRowPreview();
+
+  Peer _peer(String id,
+      {String alias = '',
+      String platform = '',
+      String? device,
+      bool online = true,
+      String? brand = 'b'}) {
+    final p = Peer.fromJson({'id': id, 'alias': alias, 'platform': platform});
+    p.waldBrand = brand;
+    p.waldDevice = device;
+    p.online = online;
+    return p;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    peerCardUiType.value = PeerUiType.list; // 메모리에서만(설정에 쓰지 않는다)
+    WaldFavorites.set(['1048299257']); // 메모리에서만(저장하지 않는다) — 노란 별 견본
+    final peers = [
+      _peer('1003096058', platform: kPeerPlatformAndroid),
+      _peer('1032100759'),
+      _peer('1048299257',
+          alias: '강남점 KDS', platform: kPeerPlatformAndroid, device: 'KDS'),
+      _peer('1053072418',
+          alias: '본사 사무실 PC',
+          platform: kPeerPlatformWindows,
+          device: 'POS',
+          online: false),
+      _peer('1110164393', alias: '디자인팀 맥', platform: kPeerPlatformMacOS),
+      _peer('1115085319',
+          alias: '어드민 정보 없는 기기', platform: kPeerPlatformLinux, brand: null),
+    ];
+    Widget row(Widget child) => Container(
+        height: 45, margin: const EdgeInsets.only(bottom: 8), child: child);
+    final hover = true.obs;
+    return ChangeNotifierProvider<PeerTabModel>.value(
+      value: gFFI.peerTabModel,
+      child: Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: ListView(padding: const EdgeInsets.all(24), children: [
+          Text('주소록 목록 줄 — 마우스를 올리지 않은 상태',
+                  style: Theme.of(context).textTheme.titleSmall)
+              .paddingOnly(bottom: 8),
+          for (final p in peers) row(AddressBookPeerCard(peer: p)),
+          const SizedBox(height: 16),
+          Text('줄 버튼 — 마우스를 올린 줄(hover = true)',
+                  style: Theme.of(context).textTheme.titleSmall)
+              .paddingOnly(bottom: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: waldAbCardActions(context, peers[3], PeerTabIndex.ab,
+                Icon(waldIcon(Icons.more_vert), size: 18),
+                hover: hover),
+          ),
+        ]),
       ),
     );
   }
