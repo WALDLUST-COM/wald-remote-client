@@ -7,10 +7,12 @@
 # 결과:  ~/wald-build/waldlust-<버전>-android-localtest[-incoming|-mobile].apk(prodtest 는 -android-prodtest), 로그는 ~/wald-build/logs/
 #        + ~/wald-build/dist/<버전>-<sha9>-<대상>/waldlust-remote[-incoming|-mobile]-<버전>-android[-<대상>].apk 와 manifest-android-<변형>.txt
 #        (설치 파일 이름 규칙 — 결정 D36: release 는 '-<대상>' 을 붙이지 않는다. 예 waldlust-remote-incoming-1.5.0-android.apk)
-#        브랜드 전용 빌드(DSK-01, 결정 D53): 어느 자리에든 --brand <별칭>. ~/wald-build/brand-<별칭>.env(저장소 밖, 600)에서
-#        WALDLUST_BRAND=<코드> 를 읽고, 수신 전용이면 그 파일의 브랜드 비밀번호·솔트를 쓴다(없으면 멈춘다 — 공통 비밀번호 파일로
+#        브랜드 전용 빌드(DSK-01, 결정 D53·D54): 수신 전용(incoming)만 — 어느 자리에든 --brand <별칭>. 양방향·발신 전용(outgoing)에
+#        주면 빌드 전에 멈춘다(D54 — 브랜드 빌드는 수신 전용만, 나머지는 일반 빌드 하나 + 계정 로그인으로 범위를 정한다).
+#        ~/wald-build/brand-<별칭>.env(저장소 밖, 600)에서
+#        WALDLUST_BRAND=<코드> 를 읽고, 그 파일의 브랜드 비밀번호·솔트를 쓴다(없으면 멈춘다 — 공통 비밀번호 파일로
 #        떨어지지 않는다. 공통 비밀번호와 같은 값이어도 멈춘다. set-incoming-password.sh --brand <별칭> 이 만든다).
-#        메인 APK 이름에 -<코드> 가 붙고(waldlust-remote[-incoming]-<코드>-<버전>-android…), manifest-android-<변형>-<코드>.txt 에
+#        메인 APK 이름에 -<코드> 가 붙고(waldlust-remote-incoming-<코드>-<버전>-android…), manifest-android-<변형>-<코드>.txt 에
 #        brand: 줄이 들어간다. 도우미·입력 플러그인은 브랜드와 무관해 이름이 그대로다. 빌드 뒤 ABI 마다 표식
 #        wald-brand-build:<코드>(일반 빌드는 …:none)를 확인한다. --brand 가 없으면 WALDLUST_BRAND 를 지운다.
 #        같은 파일의 WALDLUST_BRAND_NAME=<화면에 보일 브랜드 이름>(선택)은 수신 전용 앱바와 정보 창의 '브랜드' 줄에 보인다.
@@ -86,6 +88,10 @@ case "$VARIANT" in
   outgoing) SUFFIX="-mobile" ;;   # 모바일(D43 (5) — 설치 파일 이름), 변형 이름은 outgoing 그대로
   *) echo "FAIL: 변형은 bidirectional·incoming·outgoing"; exit 1 ;;
 esac
+# 결정 D54: 브랜드 전용 빌드는 수신 전용만 둔다 — 다른 변형에 --brand 가 오면 아무것도 하기 전에 멈춘다.
+if [ -n "$BRAND" ] && [ "$VARIANT" != incoming ]; then
+  echo "FAIL: D54: 양방향·발신 전용은 브랜드 빌드를 만들지 않는다(브랜드 빌드는 수신 전용만 — 일반 빌드 하나 + 계정 로그인으로 범위를 정한다). --brand 를 빼고 다시 돌린다 (변형 $VARIANT)"; exit 1
+fi
 TARGET="${3:-dummy}"
 case "$TARGET" in dummy|mock|prodtest|release) ;; *) echo "FAIL: 대상은 dummy·mock·prodtest·release"; exit 1 ;; esac
 KIND=localtest; [ "$TARGET" = prodtest ] && KIND=prodtest; [ "$TARGET" = release ] && KIND=release
@@ -127,7 +133,7 @@ CODE=""
 if [ -n "$BRAND" ]; then
   print -r -- "$BRAND" | LC_ALL=C grep -Eqx '[A-Za-z0-9][A-Za-z0-9_-]*' || die "--brand 별칭은 영문·숫자·-·_ 만 쓴다"
   BRAND_ENV="${WALD_BRAND_ENV:-$OUT/brand-$BRAND.env}"
-  [ -f "$BRAND_ENV" ] || die "$BRAND_ENV 이 없다(WALDLUST_BRAND=<코드>, 수신 전용이면 브랜드 비밀번호·솔트도)"
+  [ -f "$BRAND_ENV" ] || die "$BRAND_ENV 이 없다(WALDLUST_BRAND=<코드>, 브랜드 비밀번호·솔트)"
   CODE=$(sed -n 's/^[[:space:]]*WALDLUST_BRAND=//p' "$BRAND_ENV" | tail -1 | tr -d '[:space:]')
   print -r -- "$CODE" | LC_ALL=C grep -Eqx '[a-z0-9]{8,12}' || die "$BRAND_ENV: WALDLUST_BRAND 는 소문자·숫자 8~12자여야 한다"
   if [ "$VARIANT" = incoming ]; then

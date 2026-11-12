@@ -37,6 +37,8 @@
 #   -<code> (portable folder, installer, manifest-<variant>-<code>.txt with a 'brand:' line). After the build the script
 #   looks for the mark wald-brand-build:<code> in the binary (wald-brand-build:none for a general build).
 #   Without -Brand, WALDLUST_BRAND is removed from the environment - a value left in the shell cannot leak into a general build.
+#   Decision D54 (narrows D53): brand builds are incoming-only. With -Brand and any other -Variant the script stops before
+#   building; bidirectional ships as one general build and the account login sets the scope.
 # - The shared working folder is not touched: build in a fresh git worktree (wt-windows);
 #   cargo target lives outside it (target-windows) and is linked in as a junction.
 # - Short root (C:\wald-build) because LongPathsEnabled is 0 on this host (vcpkg/cmake/flutter hit MAX_PATH).
@@ -99,6 +101,7 @@ function Run([string]$Name, [string]$Cmd) {
 # Brand-only build (DSK-01, decision D53). See the header. Values are never printed (the code is not a secret, the password is).
 $Code = ''
 if ($Brand) {
+  if ($Variant -ne 'incoming') { Die "D54: no brand build for the $Variant variant (brand builds are incoming-only; bidirectional is one general build scoped by the account login) - drop -Brand" }
   if ($Brand -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]*$') { Die "-Brand takes an alias made of letters, digits, - and _" }
   if (-not $BrandEnv) { $BrandEnv = Join-Path $Out "brand-$Brand.env" }
   if (-not (Test-Path -LiteralPath $BrandEnv)) { Die "$BrandEnv not found (WALDLUST_BRAND=<code>; incoming-only also WALDLUST_INCOMING_PASSWORD, WALDLUST_INCOMING_SALT)" }

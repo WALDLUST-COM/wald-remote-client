@@ -7,12 +7,10 @@
 # 결과:  ~/wald-build/waldlust-<버전>-macos-localtest[-incoming].app (prodtest 는 -macos-prodtest, ad-hoc 서명), 로그는 ~/wald-build/logs/macos-*.log
 #        + ~/wald-build/dist/<버전>-<sha9>-<대상>/waldlust-remote[-incoming]-<버전>-macos-arm64[-<대상>].dmg 와 manifest-macos-<변형>.txt
 #        (설치 파일 이름 규칙 — 결정 D36: release 는 '-<대상>' 을 붙이지 않는다. 예 waldlust-remote-1.5.0-macos-arm64.dmg)
-#        브랜드 전용 빌드(DSK-01, 결정 D53): 어느 자리에든 --brand <별칭> 을 더한다. ~/wald-build/brand-<별칭>.env(저장소 밖)의
-#        WALDLUST_BRAND=<어드민이 발급한 코드, 소문자·숫자 8~12자> 를 빌드에 넣는다(로그인·heartbeat·새 버전 확인에 실린다).
-#        결과 이름에 -<코드> 가 붙는다(.app, dmg waldlust-remote-<코드>-<버전>-…, manifest-macos-<변형>-<코드>.txt 와 그 안의 brand: 줄).
-#        빌드 뒤 결과물에서 표식 wald-brand-build:<코드>(일반 빌드는 …:none)를 찾아 확인한다. build-windows-local.ps1 -Brand 와 같은 규칙.
-#        --brand 가 없으면 WALDLUST_BRAND 를 지운다 — 셸에 남은 값이 일반 빌드에 들어가지 않는다.
-#        같은 파일의 WALDLUST_BRAND_NAME=<화면에 보일 브랜드 이름>(선택)은 정보 창의 '브랜드' 줄에 보인다(수신 전용은 홈에도).
+#        브랜드 전용 빌드는 만들지 않는다(결정 D54 — 브랜드 빌드는 수신 전용 Windows·Android 만, D53 을 좁힘). macOS 는 양방향뿐이라
+#        --brand 를 주면 빌드 전에 멈춘다. 양방향은 일반 빌드 하나로 운영하고 계정 로그인으로만 범위를 정한다.
+#        WALDLUST_BRAND·WALDLUST_BRAND_NAME 은 늘 지운다 — 셸에 남은 값이 빌드에 들어가지 않는다. 빌드 뒤 결과물에서
+#        표식 wald-brand-build:none 을 찾아 일반 빌드인지 확인한다(브랜드 지원 전의 기준에는 표식이 없다).
 #
 # 원칙
 # - 비관리 빌드: WALDLUST_PRESET_PASSWORD 를 넣지 않는다.
@@ -43,16 +41,12 @@
 #   ~/fvm/versions/3.24.5(.github/patches/flutter_3.24.4_dropdown_menu_enableFilter.diff 적용 + binding.dart 의 _setFramesEnabledState(false) 주석 처리),
 #   ~/vcpkg(120deac3062162151622ca4860575a33844ba10b, bootstrap 완료)
 set -u
-# --brand <별칭> 을 먼저 떼어 낸다. 나머지는 자리 인자 그대로다.
-BRAND=""; ARGS=()
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --brand) [ $# -ge 2 ] || { echo "FAIL: --brand 뒤에 별칭이 없다"; exit 1; }; BRAND="$2"; shift 2 ;;
-    --brand=*) BRAND="${1#--brand=}"; shift ;;
-    *) ARGS+=("$1"); shift ;;
+# 결정 D54: macOS 는 양방향뿐이고 양방향은 브랜드 빌드를 만들지 않는다 — --brand 가 어디에 있든 빌드 전에 멈춘다.
+for a in "$@"; do
+  case "$a" in
+    --brand|--brand=*) echo "FAIL: D54: 양방향은 브랜드 빌드를 만들지 않는다(macOS 는 양방향뿐 — 일반 빌드 하나 + 계정 로그인으로 범위를 정한다). --brand 를 빼고 다시 돌린다"; exit 1 ;;
   esac
 done
-set -- "${ARGS[@]}"
 R=/Users/kimsungchun/Documents/GitHub/wald-remote-client
 OUT="$HOME/wald-build"
 W="$OUT/wt-macos"
@@ -101,22 +95,6 @@ notarize() {
   echo "notarized $2: $id"
 }
 
-# 브랜드 전용 빌드(DSK-01, 결정 D53). 머리 주석 참고. 코드는 비밀이 아니다(바이너리에 들어간다).
-CODE=""
-if [ -n "$BRAND" ]; then
-  print -r -- "$BRAND" | LC_ALL=C grep -Eqx '[A-Za-z0-9][A-Za-z0-9_-]*' || die "--brand 별칭은 영문·숫자·-·_ 만 쓴다"
-  BRAND_ENV="${WALD_BRAND_ENV:-$OUT/brand-$BRAND.env}"
-  [ -f "$BRAND_ENV" ] || die "$BRAND_ENV 이 없다(WALDLUST_BRAND=<코드>)"
-  CODE=$(sed -n 's/^[[:space:]]*WALDLUST_BRAND=//p' "$BRAND_ENV" | tail -1 | tr -d '[:space:]')
-  print -r -- "$CODE" | LC_ALL=C grep -Eqx '[a-z0-9]{8,12}' || die "$BRAND_ENV: WALDLUST_BRAND 는 소문자·숫자 8~12자여야 한다"
-  export WALDLUST_BRAND="$CODE"
-  # 화면에 보이는 브랜드 이름(선택 — WALDLUST_BRAND_NAME, 30자 이하). 형식은 build.rs 가 검사한다.
-  BRAND_NAME=$(sed -n 's/^[[:space:]]*WALDLUST_BRAND_NAME=//p' "$BRAND_ENV" | tail -1 | tr -d '\r')
-  [ -z "$BRAND_NAME" ] || export WALDLUST_BRAND_NAME="$BRAND_NAME"
-  echo "brand $CODE, 화면 이름 ${BRAND_NAME:-(없음)}"
-fi
-BTAG=""; [ -n "$CODE" ] && BTAG="-$CODE"
-
 xcodebuild -version >/dev/null 2>&1 || die "Xcode 가 선택되지 않았거나 라이선스 미동의(sudo xcode-select -s …, sudo xcodebuild -license accept)"
 
 # release: origin(WALDLUST-COM)에 있는 wald-v* 태그이고 로컬 태그와 같은 커밋이어야 한다.
@@ -144,7 +122,6 @@ rsync -a --exclude .git "$R/libs/hbb_common/" "$W/libs/hbb_common/" || die "subm
 mkdir -p "$OUT/target-macos"
 ln -s "$OUT/target-macos" "$W/target" || die "target 링크"
 cd "$W" || die cd
-[ -z "$CODE" ] || [ -f src/wald_brand.rs ] || die "$BASE 에는 브랜드 빌드 지원이 없다(src/wald_brand.rs)"
 if [ "$TARGET" = release ]; then
   TAG_VER=${${BASE#wald-v}%-r*}
   SRC_VER=$(grep -E '^version:' flutter/pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
@@ -224,7 +201,7 @@ else
   codesign --verify --deep --strict "$APP" >> "$LOG/macos-sign.log" 2>&1 || die "서명 검증"
 fi
 VER=$(grep -E '^version:' flutter/pubspec.yaml | awk '{print $2}' | cut -d+ -f1)
-DEST="$OUT/waldlust-$VER-macos-$KIND$SUFFIX$BTAG.app"
+DEST="$OUT/waldlust-$VER-macos-$KIND$SUFFIX.app"
 pgrep -f "$DEST/Contents/MacOS/" >/dev/null && die "$DEST 가 실행 중이다 — 종료한 뒤 다시 돌린다"
 rm -rf "$DEST"
 ditto "$APP" "$DEST" || die "앱 복사"
@@ -239,11 +216,11 @@ API_URL="${WALDLUST_API_SERVER:-}"; API_URL="${API_URL%/}"; API_NEEDLE="${API_UR
 hb=$(strings -a "$DYLIB" | grep -cF "$HB_NEEDLE")
 prod=$(strings -a "$DYLIB" | grep -c 'remote.waldpay.co.kr/api/heartbeat')
 api=-1; [ -n "$API_NEEDLE" ] && api=$(strings -a "$DYLIB" | grep -cF "$API_NEEDLE")
-# 브랜드 표식(결정 D53): 브랜드 빌드는 wald-brand-build:<코드>, 일반 빌드는 wald-brand-build:none 이 들어 있어야 한다.
-# 브랜드 지원 전의 기준에는 표식이 없다(일반 빌드만 된다).
+# 브랜드 표식(결정 D53·D54): macOS 는 일반 빌드뿐이라 wald-brand-build:none 이 들어 있어야 한다.
+# 브랜드 지원 전의 기준에는 표식이 없다.
 MARK_NEEDLE=""; mark=-1
 if [ -f src/wald_brand.rs ]; then
-  MARK_NEEDLE="wald-brand-build:${CODE:-none}"
+  MARK_NEEDLE="wald-brand-build:none"
   mark=$(strings -a "$DYLIB" | grep -cF "$MARK_NEEDLE")
 fi
 CHECK="heartbeat $HB_NEEDLE=$hb production=$prod / api-server ${API_NEEDLE:--}=$api / brand ${MARK_NEEDLE:--}=$mark"
@@ -270,7 +247,7 @@ step dmg
 COMMIT=$(git rev-parse HEAD)
 DIST="$OUT/dist/$VER-${COMMIT[1,9]}-$TARGET"
 mkdir -p "$DIST"
-DMG="$DIST/waldlust-remote$SUFFIX$BTAG-$VER-macos-arm64$TSUF.dmg"
+DMG="$DIST/waldlust-remote$SUFFIX-$VER-macos-arm64$TSUF.dmg"
 DMG_NOTE=""
 STAGE="$OUT/dmg-stage-macos"
 rm -rf "$STAGE" "$DMG"; mkdir -p "$STAGE"
@@ -301,7 +278,6 @@ fi
   echo "platform: macos-aarch64"
   echo "variant: $VARIANT"
   echo "target: $TARGET"
-  [ -z "$CODE" ] || echo "brand: $CODE"
   echo "api-server: ${WALDLUST_API_SERVER:-(none - account features disabled)}"
   echo "heartbeat: $WALDLUST_HEARTBEAT_URL"
   echo "check: $CHECK"
@@ -311,7 +287,7 @@ fi
   echo "size: $(stat -f %z "$DMG")"
   echo "sha256: $(shasum -a 256 "$DMG" | awk '{print $1}')"
   echo "built: $(date '+%Y-%m-%d %H:%M:%S')"
-} > "$DIST/manifest-macos-$VARIANT$BTAG.txt"
+} > "$DIST/manifest-macos-$VARIANT.txt"
 if [ "$TARGET" = release ]; then
   cp NOTICE "$DIST/NOTICE.txt" && cp LICENCE "$DIST/LICENCE.txt" && cp "$NOTICES" "$DIST/THIRD_PARTY_NOTICES-macos.txt" || die "dist 고지 복사"
 fi
