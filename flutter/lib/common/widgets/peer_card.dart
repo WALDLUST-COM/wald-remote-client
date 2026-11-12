@@ -54,6 +54,8 @@ class _PeerCardState extends State<_PeerCard>
   final double _cardRadius = 16;
   final double _tileRadius = 5;
   final double _borderWidth = 2;
+  // Waldlust(DSK-04 — 부록 A-75): 마우스가 이 줄 위에 있는지 — 줄 버튼 일부를 그때만 보인다(waldAbCardActions).
+  final _hover = false.obs;
 
   @override
   Widget build(BuildContext context) {
@@ -109,6 +111,7 @@ class _PeerCardState extends State<_PeerCard>
     );
     return MouseRegion(
       onEnter: (evt) {
+        _hover.value = true;
         deco.value = BoxDecoration(
           border: Border.all(
               color: Theme.of(context).colorScheme.primary,
@@ -119,6 +122,7 @@ class _PeerCardState extends State<_PeerCard>
         );
       },
       onExit: (evt) {
+        _hover.value = false;
         deco.value = BoxDecoration(
           border: Border.all(color: Colors.transparent, width: _borderWidth),
           borderRadius: BorderRadius.circular(
@@ -154,7 +158,8 @@ class _PeerCardState extends State<_PeerCard>
       children: [
         Container(
             decoration: BoxDecoration(
-              color: str2color('${peer.id}${peer.platform}', 0x7f),
+              // Waldlust(DSK-04 — 부록 A-75): 임의 색 대신 회색 바탕 + 회색 플랫폼 그림(wald_ab.dart).
+              color: waldPeerAvatarBg,
               borderRadius: isPortrait
                   ? BorderRadius.circular(_tileRadius)
                   : BorderRadius.only(
@@ -167,13 +172,13 @@ class _PeerCardState extends State<_PeerCard>
             height: isPortrait ? 50 : null,
             child: Stack(
               children: [
-                getPlatformImage(peer.platform, size: isPortrait ? 38 : 30)
+                waldPlatformIcon(peer.platform, size: isPortrait ? 38 : 30)
                     .paddingAll(6),
                 if (_shouldBuildPasswordIcon(peer))
                   Positioned(
                     top: 1,
                     left: 1,
-                    child: Icon(Icons.key, size: 6, color: Colors.white),
+                    child: Icon(Icons.key, size: 6, color: waldPeerAvatarFg),
                   ),
               ],
             )),
@@ -300,7 +305,7 @@ class _PeerCardState extends State<_PeerCard>
               children: [
                 Expanded(
                   child: Container(
-                    color: str2color('${peer.id}${peer.platform}', 0x7f),
+                    color: waldPeerAvatarBg, // 부록 A-75
                     child: Row(
                       children: [
                         Expanded(
@@ -310,7 +315,7 @@ class _PeerCardState extends State<_PeerCard>
                               Container(
                                 padding: const EdgeInsets.all(6),
                                 child:
-                                    getPlatformImage(peer.platform, size: 60),
+                                    waldPlatformIcon(peer.platform, size: 60),
                               ),
                               Row(
                                 children: [
@@ -321,7 +326,7 @@ class _PeerCardState extends State<_PeerCard>
                                       child: Text(
                                         name,
                                         style: const TextStyle(
-                                            color: Colors.white70,
+                                            color: waldPeerAvatarFg,
                                             fontSize: 12),
                                         textAlign: TextAlign.center,
                                         overflow: TextOverflow.ellipsis,
@@ -340,7 +345,7 @@ class _PeerCardState extends State<_PeerCard>
                                       child: Text(
                                         peer.note,
                                         style: const TextStyle(
-                                            color: Colors.white38,
+                                            color: WaldPalette.neutral500,
                                             fontSize: 10),
                                         textAlign: TextAlign.center,
                                         overflow: TextOverflow.ellipsis,
@@ -388,7 +393,7 @@ class _PeerCardState extends State<_PeerCard>
         Positioned(
           top: 4,
           left: 12,
-          child: Icon(Icons.key, size: 12, color: Colors.white),
+          child: Icon(Icons.key, size: 12, color: waldPeerAvatarFg),
         ),
     ]);
   }
@@ -447,7 +452,8 @@ class _PeerCardState extends State<_PeerCard>
         widget.tab == PeerTabIndex.recent ||
         widget.tab == PeerTabIndex.fav) {
       // Waldlust(DSK-04·DSK-06): 주소록·최근 세션·즐겨찾기 카드에 연결·파일 전송·(권한이 있으면) 이름 편집 버튼.
-      return waldAbCardActions(context, peer, widget.tab, _actionMore(peer));
+      return waldAbCardActions(context, peer, widget.tab, _actionMore(peer),
+          hover: isDesktop ? _hover : null);
     } else {
       return _actionMore(peer);
     }
@@ -985,8 +991,7 @@ class RecentPeerCard extends BasePeerCard {
       menuItems.add(_renameAction(peer.id));
     }
     // Waldlust(DSK-12): 세로 카드에는 연필 버튼(가로 전용)이 없어 어드민 기기 이름 편집을 메뉴에 둔다.
-    final waldAb =
-        stateGlobal.isPortrait.isTrue ? waldRenameAllAb(peer) : null;
+    final waldAb = stateGlobal.isPortrait.isTrue ? waldRenameAllAb(peer) : null;
     if (waldAb != null) {
       menuItems.add(waldRenameMenuEntry(peer, menuPadding, ab: waldAb));
     }
@@ -1057,8 +1062,7 @@ class FavoritePeerCard extends BasePeerCard {
       menuItems.add(_renameAction(peer.id));
     }
     // Waldlust(DSK-12): 세로 카드에는 연필 버튼(가로 전용)이 없어 어드민 기기 이름 편집을 메뉴에 둔다.
-    final waldAb =
-        stateGlobal.isPortrait.isTrue ? waldRenameAllAb(peer) : null;
+    final waldAb = stateGlobal.isPortrait.isTrue ? waldRenameAllAb(peer) : null;
     if (waldAb != null) {
       menuItems.add(waldRenameMenuEntry(peer, menuPadding, ab: waldAb));
     }

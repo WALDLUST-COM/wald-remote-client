@@ -219,6 +219,7 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("wald-update-confirm-tip", "Ongoing remote connections will be disconnected, and the app will close and reopen."),
         ("wald-update-windows-{}-tip", "{} open remote window(s) will also close."),
         ("wald-password-required-tip", "Enter the access password set on the remote device."),
+        ("wald-device-unassigned", "No device type"),
         ("wald-delete-confirm-tip", "It will be removed from the list. This can't be undone."),
         ("wald-delete-peers-{}-title", "Delete {} selected devices?"),
         ("wald-update-uac-tip", "If a User Account Control prompt appears, click Yes."),
