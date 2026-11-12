@@ -92,6 +92,16 @@ fn check_waldlust_brand() {
     if !ok {
         panic!("WALDLUST_BRAND 는 비우거나 소문자·숫자 8~12자(어드민이 발급한 브랜드 코드)여야 한다");
     }
+    // 결정 D54: 브랜드 전용 빌드는 수신 전용만 만든다. 양방향·발신 전용은 일반 빌드 하나이고
+    // 범위는 계정 로그인으로만 정한다.
+    println!("cargo:rerun-if-env-changed=WALDLUST_VARIANT");
+    let variant = std::env::var("WALDLUST_VARIANT").unwrap_or_default();
+    if !brand.is_empty() && variant != "incoming" {
+        panic!(
+            "WALDLUST_BRAND 는 수신 전용 빌드(WALDLUST_VARIANT=incoming)에만 줄 수 있다(결정 D54) — 지금 변형: {}",
+            if variant.is_empty() { "bidirectional(기본)" } else { &variant }
+        );
+    }
     println!(
         "cargo:rustc-env=WALDLUST_BRAND_MARK=wald-brand-build:{}",
         if brand.is_empty() { "none" } else { &brand }

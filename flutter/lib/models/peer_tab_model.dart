@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_hbb/common/wald_brand.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_hbb/models/platform_model.dart';
@@ -41,11 +40,7 @@ class PeerTabModel with ChangeNotifier {
   List<bool> isEnabled = List.from([
     true,
     true,
-    // Waldlust(DSK-01, 결정 D53): 브랜드 전용 빌드는 '발견됨' 탭을 숨긴다 — 같은 LAN 의 기기를 직접 찾는 탭이라
-    // 서버의 브랜드 제한이 닿지 않는다.
-    !isWeb &&
-        !isWaldBrandBuild &&
-        bind.mainGetLocalOption(key: "disable-discovery-panel") != "Y",
+    !isWeb && bind.mainGetLocalOption(key: "disable-discovery-panel") != "Y",
     !(bind.isDisableAb() || bind.isDisableAccount()),
     !(bind.isDisableGroupPanel() || bind.isDisableAccount()),
   ]);
@@ -129,6 +124,27 @@ class PeerTabModel with ChangeNotifier {
       _currentTab = PeerTabIndex.ab.index;
     }
     _trySetCurrentTabToFirstVisibleEnabled();
+    _waldWatchBrandScope();
+  }
+
+  // Waldlust(DSK-01, 결정 D54): 브랜드 범위 계정(사용자 정보 wald_brand_scope)으로 로그인하면 '발견됨' 탭을 숨긴다 —
+  // 같은 LAN 의 기기를 직접 찾는 탭이라 서버의 브랜드 제한이 닿지 않는다. 직원 계정·로그아웃이면 다시 보인다.
+  // 로그인·로그아웃·currentUser 갱신 때 user_model.dart 가 값을 바꾸면 다시 계산하고, 고른 탭이 숨으면 다른 탭으로 옮긴다.
+  void _waldWatchBrandScope() {
+    final lan = PeerTabIndex.lan.index;
+    final lanEnabled = isEnabled[lan];
+    final scope = parent.target?.userModel.waldBrandScope;
+    if (scope == null) return;
+    void apply(bool brandScope) {
+      final enabled = lanEnabled && !brandScope;
+      if (isEnabled[lan] == enabled) return;
+      isEnabled[lan] = enabled;
+      _trySetCurrentTabToFirstVisibleEnabled();
+      notifyListeners();
+    }
+
+    apply(scope.value);
+    scope.listen(apply);
   }
 
   setCurrentTab(int index) {

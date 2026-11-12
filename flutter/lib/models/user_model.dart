@@ -20,6 +20,10 @@ class UserModel {
   final RxString displayName = ''.obs;
   final RxString avatar = ''.obs;
   final RxBool isAdmin = false.obs;
+  // Waldlust(DSK-01, 결정 D54): 서버가 정한 '브랜드 범위 계정' 여부(사용자 정보 wald_brand_scope).
+  // 저장된 사용자 정보로 시작해 앱을 켜자마자 탭 목록이 맞게 한다(peer_tab_model.dart 가 듣는다).
+  final RxBool waldBrandScope =
+      (UserModel.getLocalUserInfo()?['wald_brand_scope'] == true).obs;
   final RxString networkError = ''.obs;
   bool get isLogin => userName.isNotEmpty;
   String get displayNameOrUserName =>
@@ -118,6 +122,7 @@ class UserModel {
       userName.value = (userInfo['name'] ?? '').toString();
       displayName.value = (userInfo['display_name'] ?? '').toString();
       avatar.value = (userInfo['avatar'] ?? '').toString();
+      waldBrandScope.value = userInfo['wald_brand_scope'] == true;
     }
   }
 
@@ -132,6 +137,7 @@ class UserModel {
     userName.value = '';
     displayName.value = '';
     avatar.value = '';
+    waldBrandScope.value = false;
   }
 
   _parseAndUpdateUser(UserPayload user) {
@@ -139,6 +145,7 @@ class UserModel {
     displayName.value = user.displayName;
     avatar.value = user.avatar;
     isAdmin.value = user.isAdmin;
+    waldBrandScope.value = user.waldBrandScope;
     bind.mainSetLocalOption(key: 'user_info', value: jsonEncode(user));
     if (isWeb) {
       // ugly here, tmp solution

@@ -33,6 +33,7 @@ class UserPayload {
   String? verifier;
   UserStatus status;
   bool isAdmin = false;
+  bool waldBrandScope = false; // Waldlust(DSK-01, 결정 D54)
 
   UserPayload.fromJson(Map<String, dynamic> json)
       : name = json['name'] ?? '',
@@ -46,7 +47,8 @@ class UserPayload {
             : json['status'] == -1
                 ? UserStatus.kUnverified
                 : UserStatus.kNormal,
-        isAdmin = json['is_admin'] == true;
+        isAdmin = json['is_admin'] == true,
+        waldBrandScope = json['wald_brand_scope'] == true;
 
   Map<String, dynamic> toJson() {
     final Map<String, dynamic> map = {
@@ -58,6 +60,8 @@ class UserPayload {
           : status == UserStatus.kUnverified
               ? -1
               : 1,
+      // Waldlust(DSK-01, 결정 D54): 로컬 user_info 에도 남긴다(다음 실행 때 탭 목록).
+      'wald_brand_scope': waldBrandScope,
     };
     return map;
   }
