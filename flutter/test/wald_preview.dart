@@ -16,6 +16,8 @@ import 'package:flutter_hbb/common/wald_icons.dart';
 import 'package:flutter_hbb/common/wald_theme.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
 import 'package:flutter_hbb/common/widgets/login.dart';
+import 'package:flutter_hbb/common/widgets/wald_ab.dart';
+import 'package:flutter_hbb/common/widgets/peer_card.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/file_manager_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
@@ -24,6 +26,9 @@ import 'package:flutter_hbb/desktop/widgets/wald_update.dart';
 import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/file_model.dart';
 import 'package:flutter_hbb/models/model.dart';
+import 'package:flutter_hbb/models/wald_favorites.dart';
+import 'package:flutter_hbb/models/peer_tab_model.dart';
+import 'package:flutter_hbb/models/peer_model.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:provider/provider.dart';
@@ -76,6 +81,13 @@ void main() async {
       unselectedIcon: Icons.chat_bubble_outline,
       closable: false,
       page: const _DialogPreview()));
+  controller.add(TabInfo(
+      key: 'peers',
+      label: '기기 줄',
+      selectedIcon: Icons.view_list,
+      unselectedIcon: Icons.view_list_outlined,
+      closable: false,
+      page: const _PeerRowPreview()));
   // WALD_PREVIEW_TAB=dialogs 처럼 처음 열 탭을 고른다(화면 캡처용).
   final first = Platform.environment['WALD_PREVIEW_TAB'];
   final firstIndex =
@@ -703,5 +715,72 @@ class _DialogPreview extends StatelessWidget {
         ]),
       ),
     ]);
+  }
+}
+
+/// Waldlust(DSK-04 — 부록 A-75): 기기 줄 견본. 가짜 기기로 주소록 목록 줄(AddressBookPeerCard)을 그린다 —
+/// 로그인·서버 없이 부제·아바타·줄 버튼을 본다. 누르지 않는다(연결을 시도한다).
+/// 마지막 묶음은 마우스를 올린 줄의 버튼 모습(hover = true)이다.
+class _PeerRowPreview extends StatelessWidget {
+  const _PeerRowPreview();
+
+  Peer _peer(String id,
+      {String alias = '',
+      String platform = '',
+      String? device,
+      bool online = true,
+      String? brand = 'b'}) {
+    final p = Peer.fromJson({'id': id, 'alias': alias, 'platform': platform});
+    p.waldBrand = brand;
+    p.waldDevice = device;
+    p.online = online;
+    return p;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    peerCardUiType.value = PeerUiType.list; // 메모리에서만(설정에 쓰지 않는다)
+    if (!WaldFavorites.ids.contains('1048299257')) {
+      WaldFavorites.ids.add('1048299257'); // 메모리에서만 — 노란 별 견본
+    }
+    final peers = [
+      _peer('1003096058', platform: kPeerPlatformAndroid),
+      _peer('1032100759'),
+      _peer('1048299257',
+          alias: '강남점 KDS', platform: kPeerPlatformAndroid, device: 'KDS'),
+      _peer('1053072418',
+          alias: '본사 사무실 PC',
+          platform: kPeerPlatformWindows,
+          device: 'POS',
+          online: false),
+      _peer('1110164393', alias: '디자인팀 맥', platform: kPeerPlatformMacOS),
+      _peer('1115085319',
+          alias: '어드민 정보 없는 기기', platform: kPeerPlatformLinux, brand: null),
+    ];
+    Widget row(Widget child) => Container(
+        height: 45, margin: const EdgeInsets.only(bottom: 8), child: child);
+    final hover = true.obs;
+    return ChangeNotifierProvider<PeerTabModel>.value(
+      value: gFFI.peerTabModel,
+      child: Container(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: ListView(padding: const EdgeInsets.all(24), children: [
+          Text('주소록 목록 줄 — 마우스를 올리지 않은 상태',
+                  style: Theme.of(context).textTheme.titleSmall)
+              .paddingOnly(bottom: 8),
+          for (final p in peers) row(AddressBookPeerCard(peer: p)),
+          const SizedBox(height: 16),
+          Text('줄 버튼 — 마우스를 올린 줄(hover = true)',
+                  style: Theme.of(context).textTheme.titleSmall)
+              .paddingOnly(bottom: 8),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: waldAbCardActions(context, peers[2], PeerTabIndex.ab,
+                Icon(waldIcon(Icons.more_vert), size: 18),
+                hover: hover),
+          ),
+        ]),
+      ),
+    );
   }
 }
