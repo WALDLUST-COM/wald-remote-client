@@ -1226,10 +1226,11 @@ class CustomAlertDialog extends StatelessWidget {
           // Waldlust(DSK-07 — 부록 A-74): 제목 17·굵게(기존 19 보통).
           titleTextStyle: MyTheme.dialogTitleStyle(context),
           // 본문 14(기존 16 — Material 2 기본 titleMedium). 제목 17 과 위계가 나뉘고 앱 본문 글자와 같다.
-          // 입력 칸 글자는 TextField 가 따로 정해 그대로다.
+          // 입력 칸 글자는 TextField 가 따로 정해 그대로다. 줄 높이는 정하지 않는다 — 여기서 정하면 글자 크기를
+          // 따로 준 본문(정보 창의 11px 저작권 줄 등)까지 줄이 높아져 좁은 창에서 넘친다.
           contentTextStyle:
               (Theme.of(context).textTheme.titleMedium ?? const TextStyle())
-                  .copyWith(fontSize: 14, height: 1.45),
+                  .copyWith(fontSize: 14),
           content: ConstrainedBox(
             // Waldlust(DSK-07 — 부록 A-74): 데스크탑은 최소 폭을 줘서 짧은 대화상자가 제각각 좁아지지 않게
             // (전체 400 = 352 + 좌우 24). 창이 더 좁으면 부모 제약이 이긴다(수신 전용 홈 폭 280).
