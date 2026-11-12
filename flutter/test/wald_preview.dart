@@ -740,9 +740,7 @@ class _PeerRowPreview extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     peerCardUiType.value = PeerUiType.list; // 메모리에서만(설정에 쓰지 않는다)
-    if (!WaldFavorites.ids.contains('1048299257')) {
-      WaldFavorites.ids.add('1048299257'); // 메모리에서만 — 노란 별 견본
-    }
+    WaldFavorites.set(['1048299257']); // 메모리에서만(저장하지 않는다) — 노란 별 견본
     final peers = [
       _peer('1003096058', platform: kPeerPlatformAndroid),
       _peer('1032100759'),
@@ -775,7 +773,7 @@ class _PeerRowPreview extends StatelessWidget {
               .paddingOnly(bottom: 8),
           Align(
             alignment: Alignment.centerLeft,
-            child: waldAbCardActions(context, peers[2], PeerTabIndex.ab,
+            child: waldAbCardActions(context, peers[3], PeerTabIndex.ab,
                 Icon(waldIcon(Icons.more_vert), size: 18),
                 hover: hover),
           ),

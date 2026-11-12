@@ -71,9 +71,9 @@ Widget waldEditButton(Peer peer, {BaseAb? ab}) {
 /// 즐겨찾기 별(부록 A-53), 그다음 업스트림 더보기 메뉴. 그리드 카드는 이름과 한 줄을 나눠 쓰므로 버튼을 작게 둔다.
 /// 최근 세션·즐겨찾기(부록 A-17)의 이름 편집은 어드민 기기만, '전체' 주소록의 권한으로 한다(DSK-06).
 ///
-/// 부록 A-75: [hover] 를 주면(데스크탑) 연결·파일 전송만 늘 보이고 이름 편집·별·더보기는 마우스를 올린 줄에만
+/// 부록 A-75: [hover] 를 주면(데스크탑) 연결·파일 전송·더보기만 늘 보이고 이름 편집·별은 마우스를 올린 줄에만
 /// 보인다(즐겨찾기한 기기의 노란 별은 늘 보인다). 자리는 그대로 차지해 줄이 흔들리지 않는다. 마우스가 없는
-/// 화면(Android 가로 등)은 [hover] 를 주지 않아 전부 보인다.
+/// 화면(Android 가로 등)은 [hover] 를 주지 않아 전부 보인다. 순서: 이름 편집, 별, 연결, 파일 전송, 더보기.
 Widget waldAbCardActions(
     BuildContext context, Peer peer, PeerTabIndex tab, Widget more,
     {RxBool? hover}) {
@@ -92,14 +92,16 @@ Widget waldAbCardActions(
     final all = waldRenameAllAb(peer);
     if (all != null) edit = waldEditButton(peer, ab: all);
   }
+  // 부록 A-75: 숨는 버튼(이름 편집·별)을 왼쪽에 둔다 — 오른쪽에 두면 숨었을 때 줄 끝에 빈 자리가 남는다.
+  // 더보기(⋮)는 늘 보인다(줄 끝 — 메뉴로 가는 길이 오른쪽 클릭뿐이면 찾기 어렵다).
   return Row(mainAxisSize: MainAxisSize.min, children: [
+    if (edit != null) onHover(edit),
+    _waldFavButton(peer, hover: hover),
     _waldCardButton(Icons.screen_share_outlined, translate('Connect'),
         () => connectInPeerTab(context, peer, tab)),
     _waldCardButton(Icons.folder_outlined, translate('Transfer file'),
         () => connectInPeerTab(context, peer, tab, isFileTransfer: true)),
-    if (edit != null) onHover(edit),
-    _waldFavButton(peer, hover: hover),
-    onHover(more),
+    more,
   ]);
 }
 
