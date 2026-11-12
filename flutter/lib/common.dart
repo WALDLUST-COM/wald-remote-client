@@ -1816,12 +1816,21 @@ bool mainGetPeerBoolOptionSync(String id, String key) {
 // Use `sessionGetToggleOption()` and `sessionToggleOption()` instead.
 // Because all session options use `Y` and `<Empty>` as values.
 
+/// Waldlust(DSK-04 — 부록 A-76): ID 검색은 검색어의 공백을 무시한다. 목록은 ID 를 `1 003 096 058` 처럼
+/// 띄어 보여 주는데(formatID) 저장된 값은 `1003096058` 이라, 보이는 대로 치거나 붙여 넣으면 찾지 못했다.
+/// [query] 는 호출부(peers_view.dart matchPeers)가 앞뒤 공백을 떼고 소문자로 바꿔 준 값이다.
+/// 이름·호스트·메모 검색은 공백을 그대로 둔다('강남 1' 이 '강남1' 로 바뀌면 안 된다).
+bool waldIdMatches(String id, String query) {
+  final q = query.replaceAll(RegExp(r'\s+'), '');
+  return q.isNotEmpty && id.toLowerCase().contains(q);
+}
+
 Future<bool> matchPeer(
     String searchText, Peer peer, PeerTabIndex peerTabIndex) async {
   if (searchText.isEmpty) {
     return true;
   }
-  if (peer.id.toLowerCase().contains(searchText)) {
+  if (waldIdMatches(peer.id, searchText)) {
     return true;
   }
   if (peer.hostname.toLowerCase().contains(searchText) ||
