@@ -275,8 +275,7 @@ class _WidgetOPState extends State<WidgetOP> {
                   Padding(
                     padding: const EdgeInsets.only(top: 8.0),
                     child: Builder(builder: (context) {
-                      final errorColor =
-                          Theme.of(context).colorScheme.error;
+                      final errorColor = Theme.of(context).colorScheme.error;
                       final bgColor = Theme.of(context)
                           .colorScheme
                           .errorContainer
@@ -297,12 +296,11 @@ class _WidgetOPState extends State<WidgetOP> {
                             Flexible(
                               child: SelectableText(
                                 translate(_failedMsg),
-                                style: DefaultTextStyle.of(context)
-                                    .style
-                                    .copyWith(
-                                      fontSize: 13,
-                                      color: errorColor,
-                                    ),
+                                style:
+                                    DefaultTextStyle.of(context).style.copyWith(
+                                          fontSize: 13,
+                                          color: errorColor,
+                                        ),
                               ),
                             ),
                           ],
@@ -436,13 +434,12 @@ class LoginWidgetUserPass extends StatelessWidget {
             // NOT use Offstage to wrap LinearProgressIndicator
             if (isInProgress) const LinearProgressIndicator(),
             const SizedBox(height: 12.0),
-            FittedBox(
-                child:
-                    Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            // Waldlust(DSK-07 — 부록 A-74): 로그인 버튼을 입력 칸과 같은 폭·높이 40 으로(기존 가운데 200×32).
+            Row(children: [
               // Waldlust(DSK-07): 테마 버튼 크기·글자, 라벨 줄 상자 고정.
-              Container(
-                height: WaldSize.buttonHeight,
-                width: 200,
+              Expanded(
+                  child: SizedBox(
+                height: 40,
                 child: Obx(() => ElevatedButton(
                       child: Text(
                         translate('Login'),
@@ -455,8 +452,8 @@ class LoginWidgetUserPass extends StatelessWidget {
                                 }
                               : null,
                     )),
-              ),
-            ])),
+              )),
+            ]),
           ],
         ));
   }
@@ -640,25 +637,23 @@ Future<bool?> loginDialog() async {
         MouseRegion(
           onEnter: (_) => setState(() => isCloseHovered = true),
           onExit: (_) => setState(() => isCloseHovered = false),
+          // Waldlust(DSK-07 — 부록 A-74): 닫기(✕)는 마우스를 올리면 옅은 회색 바탕(기존 빨강 바탕·흰 ✕).
           child: InkWell(
-            child: Icon(
-              waldIcon(Icons.close),
-              size: 25,
-              // No need to handle the branch of null.
-              // Because we can ensure the color is not null when debug.
-              color: isCloseHovered
-                  ? Colors.white
-                  : Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.color
-                      ?.withOpacity(0.55),
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(
+                waldIcon(Icons.close),
+                size: 20,
+                color: isCloseHovered
+                    ? WaldPalette.neutral900
+                    : WaldPalette.neutral500,
+              ),
             ),
             onTap: onDialogCancel,
-            hoverColor: Colors.red,
-            borderRadius: BorderRadius.circular(5),
+            hoverColor: WaldPalette.neutral100,
+            borderRadius: BorderRadius.circular(WaldSize.radius),
           ),
-        ).marginOnly(top: 10, right: 15),
+        ).marginOnly(top: 16, right: 16),
       ],
     );
     final titlePadding = EdgeInsets.fromLTRB(MyTheme.dialogPadding, 0, 0, 0);

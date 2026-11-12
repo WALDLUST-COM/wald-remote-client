@@ -30,7 +30,8 @@ EdgeInsets? get _insetPadding => isDesktop && bind.isIncomingOnly()
     : null;
 
 /// 확인 창의 설치 안내: 직원용 Windows(UAC)·macOS(관리자 암호). 현장 수신 전용은 확인 창 없이 바로 받는다.
-String _installTip() => isWindows ? 'wald-update-uac-tip' : 'wald-update-mac-tip';
+String _installTip() =>
+    isWindows ? 'wald-update-uac-tip' : 'wald-update-mac-tip';
 
 /// 설치하는 동안의 안내(진행 창).
 String _installingTip(String mode) {
@@ -108,26 +109,29 @@ Future<void> showWaldUpdateDialog() async {
       _startUpdate(page);
     }
 
+    // Waldlust(DSK-07 — 부록 A-74): 받기 배지 + 제목 + 안내, 버전은 회색 상자 한 줄(기존 제목 + 굵은 글자 한 줄).
+    final tip = MyTheme.dialogBodyStyle(context);
     return CustomAlertDialog(
-      title: Text(translate('wald-update-dialog-title')),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${_str(s, 'current')}  →  $version',
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Text(translate('wald-update-confirm-tip')),
+          waldDialogHeader(
+              badge: waldDialogBadge(waldIcon(Icons.download))
+                  .marginOnly(right: 14),
+              title: translate('wald-update-dialog-title'),
+              text: translate('wald-update-confirm-tip')),
+          waldUpdateVersionBox(_str(s, 'current'), version),
           if (subWindows > 0)
-            Text(translate('wald-update-windows-{$subWindows}-tip'))
-                .marginOnly(top: 4),
-          Text(translate(_installTip())).marginOnly(top: 4),
+            Text(translate('wald-update-windows-{$subWindows}-tip'), style: tip)
+                .marginOnly(top: 10),
+          Text(translate(_installTip()), style: tip)
+              .marginOnly(top: subWindows > 0 ? 4 : 10),
           if (changelog.isNotEmpty)
             InkWell(
               onTap: () => launchUrlString(changelog),
               child: Text(translate('wald-update-changelog'),
-                  style: const TextStyle(
-                      decoration: TextDecoration.underline)),
+                  style: const TextStyle(decoration: TextDecoration.underline)),
             ).marginOnly(top: 12),
         ],
       ),
@@ -183,6 +187,25 @@ Future<void> _startUpdate(String page) async {
     );
   }, tag: 'wald-update-progress');
 }
+
+/// Waldlust(DSK-07 — 부록 A-74): '지금 버전 → 새 버전' 회색 상자(미리보기 견본도 쓴다).
+Widget waldUpdateVersionBox(String current, String latest) => Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+          color: WaldPalette.neutral100,
+          borderRadius: BorderRadius.circular(WaldSize.radius)),
+      child: Row(children: [
+        Text(current,
+            style:
+                const TextStyle(fontSize: 14, color: WaldPalette.neutral500)),
+        Icon(waldIcon(Icons.arrow_forward),
+                size: 16, color: WaldPalette.neutral500)
+            .marginSymmetric(horizontal: 8),
+        Text(latest,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+      ]),
+    );
 
 final _job = Rx<Map<String, dynamic>>({});
 
@@ -312,8 +335,7 @@ class _WaldUpdateProgressState extends State<_WaldUpdateProgress> {
           ).paddingOnly(top: 12, bottom: 12),
         Text(text),
         if (state == 'installed')
-          dialogButton('Close', onPressed: widget.close)
-              .paddingOnly(top: 12),
+          dialogButton('Close', onPressed: widget.close).paddingOnly(top: 12),
       ],
     ).marginSymmetric(horizontal: 8);
   }
@@ -458,8 +480,8 @@ class _WaldUpdateAboutRowState extends State<WaldUpdateAboutRow> {
             if (changelog.isNotEmpty)
               InkWell(
                 onTap: () => launchUrlString(changelog),
-                child: Text(translate('wald-update-changelog'),
-                    style: linkStyle),
+                child:
+                    Text(translate('wald-update-changelog'), style: linkStyle),
               ).marginOnly(left: 12),
           ]).marginSymmetric(vertical: 4.0),
         ],

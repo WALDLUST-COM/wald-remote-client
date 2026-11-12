@@ -872,6 +872,13 @@ void enterUserLoginAndPasswordDialog(
   );
 }
 
+/// Waldlust(DSK-07 — 부록 A-74): 접속 비밀번호 창 머리(미리보기 견본도 쓴다).
+Widget waldConnectPasswordHeader({bool withTip = true}) => waldDialogHeader(
+    badge:
+        waldDialogBadge(waldIcon(Icons.password_rounded)).marginOnly(right: 14),
+    title: translate('Password Required'),
+    text: withTip ? translate('wald-password-required-tip') : null);
+
 _connectDialog(
   SessionID sessionId,
   OverlayDialogManager dialogManager, {
@@ -949,7 +956,8 @@ _connectDialog(
               maxLines: 3,
               softWrap: true,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 16),
+              // Waldlust(DSK-07 — 부록 A-74): 안내 글자는 14·회색(기존 16).
+              style: MyTheme.dialogBodyStyle(context),
             ),
           ),
           Container(
@@ -1023,7 +1031,7 @@ _connectDialog(
       }
       return Column(
         children: [
-          descWidget(translate('verify_rustdesk_password_tip')),
+          // Waldlust(DSK-07 — 부록 A-74): 안내 문구는 머리(waldDialogHeader)로 올렸다.
           PasswordWidget(
             controller: passwordController,
             autoFocus: osUsernameController == null,
@@ -1042,14 +1050,12 @@ _connectDialog(
       );
     }
 
+    // Waldlust(DSK-07 — 부록 A-74): 다른 대화상자와 같은 머리(열쇠 배지 + 제목 + 안내), 실행 버튼은 [연결].
+    // 기존에는 제목 줄에 24px 열쇠 아이콘, 본문에 16px 안내 글자, 버튼은 [확인]이었다.
     return CustomAlertDialog(
-      title: Row(
-        children: [
-          Icon(waldIcon(Icons.password_rounded), color: MyTheme.accent),
-          Text(translate('Password Required')).paddingOnly(left: 10),
-        ],
-      ),
       content: Column(mainAxisSize: MainAxisSize.min, children: [
+        waldConnectPasswordHeader(withTip: passwordController != null),
+        const SizedBox(height: 4),
         osAccountWidget(),
         osUsernameController == null || passwordController == null
             ? Offstage()
@@ -1057,17 +1063,8 @@ _connectDialog(
         passwdWidget(),
       ]),
       actions: [
-        dialogButton(
-          'Cancel',
-          icon: Icon(waldIcon(Icons.close_rounded)),
-          onPressed: cancel,
-          isOutline: true,
-        ),
-        dialogButton(
-          'OK',
-          icon: Icon(waldIcon(Icons.done_rounded)),
-          onPressed: submit,
-        ),
+        dialogButton('Cancel', onPressed: cancel, isOutline: true),
+        dialogButton('Connect', onPressed: submit),
       ],
       onSubmit: submit,
       onCancel: cancel,
@@ -1485,7 +1482,8 @@ showSetOSAccount(
               maxLines: 3,
               softWrap: true,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 16),
+              // Waldlust(DSK-07 — 부록 A-74): 안내 글자는 14·회색(기존 16).
+              style: MyTheme.dialogBodyStyle(context),
             ),
           ),
           Container(
@@ -2128,11 +2126,8 @@ void renameDialog(
           onPressed: cancel,
           isOutline: true,
         ),
-        dialogButton(
-          "OK",
-          icon: Icon(waldIcon(Icons.done_rounded)),
-          onPressed: submit,
-        ),
+        // Waldlust(DSK-07 — 부록 A-74): 실행 버튼 문구를 동작 이름으로(기존 [확인]).
+        dialogButton("Rename", onPressed: submit),
       ],
       onSubmit: submit,
       onCancel: cancel,
@@ -2483,11 +2478,8 @@ void addPeersToAbDialog(
           onPressed: cancel,
           isOutline: true,
         ),
-        dialogButton(
-          "OK",
-          icon: Icon(waldIcon(Icons.done_rounded)),
-          onPressed: submit,
-        ),
+        // Waldlust(DSK-07 — 부록 A-74): 실행 버튼 문구를 동작 이름으로(기존 [확인]).
+        dialogButton("Add", onPressed: submit),
       ],
       onSubmit: submit,
       onCancel: cancel,

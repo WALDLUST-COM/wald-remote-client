@@ -1340,7 +1340,16 @@ void msgBox(SessionID sessionId, String type, String title, String text,
         submitOnTimeout: true,
       );
     } else {
-      btn = dialogButton('OK', onPressed: submit);
+      // Waldlust(DSK-07 — 부록 A-74): 오류 창의 이 버튼은 원격 창을 닫는다 — [닫기]로 적는다(기존 [확인]).
+      // [다시 연결]이 함께 있으면 보조(테두리) 버튼으로 내려 주요 버튼이 둘이 되지 않게 한다.
+      final closes = type.contains("error") &&
+          !type.contains("custom") &&
+          onSubmit == null;
+      final withReconnect = reconnect != null &&
+          title == "Connection Error" &&
+          reconnectTimeout != null;
+      btn = dialogButton(closes ? 'Close' : 'OK',
+          onPressed: submit, isOutline: closes && withReconnect);
     }
     buttons.insert(0, btn);
   }
@@ -1374,7 +1383,8 @@ void msgBox(SessionID sessionId, String type, String title, String text,
                 }
               : null,
         ));
-    buttons.insert(0, button);
+    // Waldlust(DSK-07 — 부록 A-74): [닫기] [다시 연결] 순서(기존 [다시 연결] [확인]). Enter 는 그대로 닫기다.
+    buttons.add(button);
   }
   if (link.isNotEmpty) {
     buttons.insert(0, dialogButton('JumpLink', onPressed: jumplink));

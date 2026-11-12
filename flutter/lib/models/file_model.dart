@@ -209,25 +209,29 @@ class FileModel {
         (setState, Function(bool? v) close, context) {
       cancel() => close(false);
       submit() => close(true);
+      // Waldlust(DSK-07 — 부록 A-74): 주황 경고 배지 + 제목 + 질문, 그 아래 파일 이름 상자(문구는 A-8 그대로).
       return CustomAlertDialog(
-        title: Row(
-          children: [
-            Icon(waldIcon(Icons.warning_rounded), color: Colors.red),
-            Text(title).paddingOnly(
-              left: 10,
-            ),
-          ],
-        ),
-        contentBoxConstraints:
-            BoxConstraints(minHeight: 100, minWidth: 400, maxWidth: 400),
+        contentBoxConstraints: BoxConstraints(minWidth: 400, maxWidth: 400),
         content: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(translate("This file exists, skip or overwrite this file?"),
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 5),
-              Text(content),
+              waldDialogHeader(
+                  badge: waldDialogBadge(waldIcon(Icons.warning_rounded),
+                          tone: WaldDialogTone.warning)
+                      .marginOnly(right: 14),
+                  title: title,
+                  text: translate(
+                      "This file exists, skip or overwrite this file?")),
+              Container(
+                width: double.infinity,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                    color: WaldPalette.neutral100,
+                    borderRadius: BorderRadius.circular(WaldSize.radius)),
+                child: Text(content),
+              ),
               Offstage(
                 offstage: !isIdentical,
                 child: Column(
@@ -769,31 +773,25 @@ class FileController {
         (setState, Function(bool v) close, context) {
       cancel() => close(false);
       submit() => close(true);
+      // Waldlust(DSK-07 — 부록 A-74): 삭제 확인과 같은 틀 — 빨강 배지 + 제목 + 대상, 실행 버튼 빨강 [삭제].
       return CustomAlertDialog(
-        title: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(waldIcon(Icons.warning_rounded), color: Colors.red),
-            Expanded(
-              child: Text(title).paddingOnly(
-                left: 10,
-              ),
-            ),
-          ],
-        ),
-        contentBoxConstraints:
-            BoxConstraints(minHeight: 100, minWidth: 400, maxWidth: 400),
+        contentBoxConstraints: BoxConstraints(minWidth: 400, maxWidth: 400),
         content: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(content),
+            waldDialogHeader(
+                badge: waldDialogBadge(waldIcon(Icons.delete_rounded),
+                        tone: WaldDialogTone.danger)
+                    .marginOnly(right: 14),
+                title: title,
+                text: content),
             Text(
               translate("This is irreversible!"),
               style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
+                fontWeight: FontWeight.w600,
+                color: WaldPalette.red600,
               ),
-            ).paddingOnly(top: 20),
+            ).paddingOnly(left: 54, top: 4),
             showCheckbox
                 ? CheckboxListTile(
                     contentPadding: const EdgeInsets.all(0),
@@ -818,11 +816,7 @@ class FileController {
             onPressed: cancel,
             isOutline: true,
           ),
-          dialogButton(
-            "OK",
-            icon: Icon(waldIcon(Icons.done_rounded)),
-            onPressed: submit,
-          ),
+          dialogButton("Delete", onPressed: submit, isDanger: true),
         ],
         onSubmit: submit,
         onCancel: cancel,
@@ -916,11 +910,7 @@ class FileController {
             onPressed: close,
             isOutline: true,
           ),
-          dialogButton(
-            "OK",
-            icon: Icon(waldIcon(Icons.done_rounded)),
-            onPressed: submit,
-          ),
+          dialogButton("Rename", onPressed: submit),
         ],
         onSubmit: submit,
         onCancel: close,

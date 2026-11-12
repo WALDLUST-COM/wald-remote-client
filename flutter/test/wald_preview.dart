@@ -12,11 +12,15 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_hbb/common.dart';
 import 'package:flutter_hbb/common/shared_state.dart';
+import 'package:flutter_hbb/common/wald_icons.dart';
+import 'package:flutter_hbb/common/wald_theme.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
+import 'package:flutter_hbb/common/widgets/login.dart';
 import 'package:flutter_hbb/consts.dart';
 import 'package:flutter_hbb/desktop/pages/file_manager_page.dart';
 import 'package:flutter_hbb/desktop/widgets/remote_toolbar.dart';
 import 'package:flutter_hbb/desktop/widgets/tabbar_widget.dart';
+import 'package:flutter_hbb/desktop/widgets/wald_update.dart';
 import 'package:flutter_hbb/main.dart';
 import 'package:flutter_hbb/models/file_model.dart';
 import 'package:flutter_hbb/models/model.dart';
@@ -510,7 +514,7 @@ class _GalleryPreviewState extends State<_GalleryPreview> {
 class _DialogPreview extends StatelessWidget {
   const _DialogPreview();
 
-  Widget _sample(String label, Widget dialog, {double height = 222}) => Column(
+  Widget _sample(String label, Widget dialog, {double height = 204}) => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(label,
@@ -536,11 +540,8 @@ class _DialogPreview extends StatelessWidget {
                   content: msgboxContent(
                       'error', 'Connection Error', 'Remote desktop is offline'),
                   actions: [
-                    dialogButton('Reconnect',
-                        onPressed: noop,
-                        isOutline: true,
-                        icon: const Icon(Icons.refresh)),
-                    dialogButton('OK', onPressed: noop),
+                    dialogButton('Close', onPressed: noop, isOutline: true),
+                    dialogButton('Reconnect', onPressed: noop),
                   ],
                 )),
             _sample(
@@ -591,44 +592,50 @@ class _DialogPreview extends StatelessWidget {
                   ],
                 )),
             _sample(
-                '제목 + 입력(비밀번호)',
+                '접속 비밀번호(_connectDialog)',
                 CustomAlertDialog(
                   insetPadding: const EdgeInsets.all(2),
-                  title: Row(children: [
-                    Icon(waldIcon(Icons.password_rounded),
-                        color: MyTheme.accent),
-                    Text(translate('Password Required')).paddingOnly(left: 10),
+                  content: Column(mainAxisSize: MainAxisSize.min, children: [
+                    waldConnectPasswordHeader(),
+                    const SizedBox(height: 4),
+                    TextField(
+                      controller: pw,
+                      obscureText: true,
+                      decoration:
+                          InputDecoration(labelText: translate('Password')),
+                    ),
+                    CheckboxListTile(
+                      contentPadding: const EdgeInsets.all(0),
+                      dense: true,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(translate('Remember password')),
+                      value: true,
+                      onChanged: (_) {},
+                    ),
                   ]),
-                  content: TextField(
-                    controller: pw,
-                    obscureText: true,
-                    decoration:
-                        InputDecoration(labelText: translate('Password')),
-                  ),
                   actions: [
-                    dialogButton('Cancel',
-                        onPressed: noop,
-                        isOutline: true,
-                        icon: Icon(waldIcon(Icons.close_rounded))),
-                    dialogButton('OK',
-                        onPressed: noop,
-                        icon: Icon(waldIcon(Icons.done_rounded))),
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Connect', onPressed: noop),
                   ],
                 ),
-                height: 240),
+                height: 290),
             _sample(
-                '제목 + 본문(업데이트)',
+                '업데이트(wald_update)',
                 CustomAlertDialog(
                   insetPadding: const EdgeInsets.all(2),
-                  title: Text(translate('wald-update-dialog-title')),
                   content: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('1.5.11  →  1.5.12',
-                          style: TextStyle(fontWeight: FontWeight.w600)),
-                      const SizedBox(height: 12),
-                      Text(translate('wald-update-confirm-tip')),
+                      waldDialogHeader(
+                          badge: waldDialogBadge(waldIcon(Icons.download))
+                              .marginOnly(right: 14),
+                          title: translate('wald-update-dialog-title'),
+                          text: translate('wald-update-confirm-tip')),
+                      waldUpdateVersionBox('1.5.11', '1.5.12'),
+                      Text(translate('wald-update-windows-{2}-tip'),
+                              style: MyTheme.dialogBodyStyle(context))
+                          .marginOnly(top: 10),
                     ],
                   ),
                   actions: [
@@ -636,7 +643,62 @@ class _DialogPreview extends StatelessWidget {
                     dialogButton('Update', onPressed: noop),
                   ],
                 ),
-                height: 240),
+                height: 290),
+            _sample(
+                '파일 덮어쓰기(showFileConfirmDialog)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  contentBoxConstraints:
+                      const BoxConstraints(minWidth: 352, maxWidth: 352),
+                  content: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        waldDialogHeader(
+                            badge: waldDialogBadge(
+                                    waldIcon(Icons.warning_rounded),
+                                    tone: WaldDialogTone.warning)
+                                .marginOnly(right: 14),
+                            title: translate('Overwrite'),
+                            text: translate(
+                                'This file exists, skip or overwrite this file?')),
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
+                          decoration: BoxDecoration(
+                              color: WaldPalette.neutral100,
+                              borderRadius:
+                                  BorderRadius.circular(WaldSize.radius)),
+                          child: const Text('menu-2026-11.xlsx'),
+                        ),
+                      ]),
+                  actions: [
+                    dialogButton('Cancel', onPressed: noop, isOutline: true),
+                    dialogButton('Skip',
+                        onPressed: noop,
+                        isOutline: true,
+                        icon: Icon(waldIcon(Icons.navigate_next_rounded))),
+                    dialogButton('Overwrite', onPressed: noop),
+                  ],
+                ),
+                height: 290),
+            _sample(
+                '로그인(loginDialog)',
+                CustomAlertDialog(
+                  insetPadding: const EdgeInsets.all(2),
+                  title: Text(translate('Login')),
+                  content: LoginWidgetUserPass(
+                    username: TextEditingController(text: 'staff01'),
+                    pass: pw,
+                    usernameMsg: null,
+                    passMsg: null,
+                    isInProgress: false,
+                    curOP: ''.obs,
+                    onLogin: noop,
+                  ),
+                ),
+                height: 290),
           ]),
         ]),
       ),
