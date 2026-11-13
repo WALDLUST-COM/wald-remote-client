@@ -72,6 +72,8 @@ mod hbbs_http;
 mod wald_api;
 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "android"))]
 mod wald_update;
+#[cfg(any(target_os = "windows", target_os = "macos", target_os = "android"))]
+mod wald_update_sig;
 
 #[cfg(any(target_os = "windows", target_os = "linux", target_os = "macos"))]
 pub mod clipboard_file;

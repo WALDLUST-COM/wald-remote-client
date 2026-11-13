@@ -1,7 +1,7 @@
 // Waldlust 새 버전 확인·앱 안 업데이트(명세 DSK-01 — 결정 D37, 2026-10-23 사용자 결정): 데스크탑 양방향(직원용) macOS·Windows 만.
 // - 확인: 어드민 공개 `/api/app/latest`(heartbeat 와 같은 서버). 시작 때·12시간마다, 그리고 화면이 부를 때(설정 > 정보).
 // - 받기: latest 의 `download`(`/api/app/download/<id>`)를 앱 로그인 토큰(Bearer — `access_token`)으로 받으며 SHA-256 을 재고
-//   latest 의 `sha256` 과 대조한다. 토큰이 없거나 401 이면 `login`(화면이 로그인을 권하거나 어드민 페이지를 연다).
+//   latest 의 `sha256` 과 대조한다. 그 sha256 은 게시 키 서명(`updateSig` — src/wald_update_sig.rs)이 맞을 때만 믿는다. 토큰이 없거나 401 이면 `login`(화면이 로그인을 권하거나 어드민 페이지를 연다).
 // - 설치: Windows 는 Inno 설치 파일을 조용히 실행(`/WALDUPDATE=1` — 설치 뒤 트레이·메인 창을 로그인 사용자로 다시 띄운다,
 //   res/inno/waldlust.iss). macOS 는 dmg 안 앱의 번들 ID·서명·Team ID 를 지금 앱과 대조해 실행 중인 번들과 바꾸고,
 //   이 프로세스가 끝나면 새 앱을 여는 도우미를 띄운 뒤 화면에 끝내라고(`quit`) 알린다.
@@ -289,12 +289,25 @@ fn fetch_latest() -> Result<Option<Latest>, String> {
         .filter(|h| h.len() == 64 && h.bytes().all(|b| b.is_ascii_hexdigit()))
         .unwrap_or_default()
         .to_ascii_lowercase();
-    // 해시가 없으면 받은 파일을 대조할 수 없어 앱 안 업데이트를 하지 않는다(어드민 페이지로).
-    let download = if sha256.is_empty() { String::new() } else { path("download", "") };
+    let size = v["size"].as_u64().unwrap_or_default();
+    // 게시 키 서명(src/wald_update_sig.rs — 보안 재점검 2026-11-13 H2): 서명이 없거나 이 빌드·이 파일 것이 아니면
+    // 받지 않는다. 해시만으로는 어드민 서버가 바뀐 파일을 줄 때 막지 못한다.
+    let doc = crate::wald_update_sig::payload_for_this_build(version, &sha256, size);
+    let signed = !sha256.is_empty()
+        && crate::wald_update_sig::verify(
+            v["updateSig"].as_str().unwrap_or_default(),
+            doc.as_bytes(),
+            crate::wald_update_sig::UPDATE_SIGN_KEYS,
+        );
+    if !sha256.is_empty() && !signed {
+        log::warn!("wald update: {version} has no valid update signature, in-app update disabled");
+    }
+    // 해시나 서명이 없으면 받은 파일을 믿을 수 없어 앱 안 업데이트를 하지 않는다(어드민 페이지로).
+    let download = if signed { path("download", "") } else { String::new() };
     Ok(Some(Latest {
         version: version.to_owned(),
         sha256,
-        size: v["size"].as_u64().unwrap_or_default(),
+        size,
         file_name: v["fileName"].as_str().unwrap_or_default().to_owned(),
         download,
         page: path("page", "/installers"),
