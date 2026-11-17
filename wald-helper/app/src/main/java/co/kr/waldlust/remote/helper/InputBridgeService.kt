@@ -114,7 +114,8 @@ class InputBridgeService : Service() {
         }
 
         override fun key(event: KeyEvent?, text: String?, press: Boolean) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+            // 7.0 미만도 받는다 — 키 입력은 접근성 노드 글자 바꾸기(ACTION_SET_TEXT API 21 등)라 제스처와 달리 5.x 에서도 된다
+            // (2026-11-17 크라이저 U4X+CM, Android 5.1.1). Android 13+ 입력기 경로는 onBridgeKey 안에서 따로 가른다.
             InputService.ctx?.onBridgeKey(event, text, press)
         }
 
