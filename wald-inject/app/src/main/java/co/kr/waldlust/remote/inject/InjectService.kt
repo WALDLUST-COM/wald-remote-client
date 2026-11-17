@@ -8,6 +8,7 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.os.Parcel
+import android.os.Process
 import android.util.Log
 import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
@@ -86,8 +87,9 @@ class InjectService : Service() {
 
         override fun protocolVersion(): Int = PROTOCOL_VERSION
 
+        // checkSelfPermission 은 API 23 — Android 5.1(minSdk 22)에서 NoSuchMethodError 로 플러그인이 죽는다(2026-11-17 에뮬레이터)
         override fun canInject(): Boolean =
-            checkSelfPermission(INJECT_EVENTS) == PackageManager.PERMISSION_GRANTED
+            checkPermission(INJECT_EVENTS, Process.myPid(), Process.myUid()) == PackageManager.PERMISSION_GRANTED
 
         override fun attach(token: IBinder?) {
             synchronized(this@InjectService) {
