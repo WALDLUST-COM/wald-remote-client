@@ -90,7 +90,11 @@ class PointerInjector {
             }
             LEFT_DOWN -> {
                 finishLongPress()
-                if (downTime != 0L) touch(MotionEvent.ACTION_UP) // 뗌을 놓쳤다 — 앞 획을 끝내고 새로
+                // 눌린 채 누름이 또 왔다 — 앞 획은 취소(클릭으로 치지 않음)하고 새로 시작한다. 폰 제어측(터치 모드)은 상대가 모바일이면
+                // 손가락이 닿을 때 누름(onLongPressDown)을 보내고 탭이 확정되면(약 0.3초 뒤) 누름·뗌을 또 보낸다. 예전처럼 뗌으로 끝내면
+                // 0.4초짜리 클릭 + 짧은 클릭 = 클릭 두 번이 된다(2026-11-17 크라이저 U4X+CM). 접근성 경로(InputService)도 새 누름에서
+                // 앞 획을 버리고 다시 시작한다.
+                if (downTime != 0L) touch(MotionEvent.ACTION_CANCEL)
                 downTime = SystemClock.uptimeMillis()
                 touch(MotionEvent.ACTION_DOWN)
             }
@@ -113,7 +117,7 @@ class PointerInjector {
         when (mask) {
             TOUCH_PAN_START -> {
                 finishLongPress()
-                if (downTime != 0L) touch(MotionEvent.ACTION_UP)
+                if (downTime != 0L) touch(MotionEvent.ACTION_CANCEL) // 위 LEFT_DOWN 과 같다 — 앞 획은 클릭으로 치지 않는다
                 mouseX = max(0, x)
                 mouseY = max(0, y)
                 downTime = SystemClock.uptimeMillis()
