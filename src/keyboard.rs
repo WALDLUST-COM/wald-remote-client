@@ -199,6 +199,7 @@ pub mod client {
 
                 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
                 KEYBOARD_HOOKED.store(true, Ordering::SeqCst);
+                super::wald_hangul::reset();
 
                 #[cfg(target_os = "linux")]
                 let had_owner = gs.owner.is_some();
@@ -291,6 +292,7 @@ pub mod client {
 
                 #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
                 KEYBOARD_HOOKED.store(false, Ordering::SeqCst);
+                super::wald_hangul::reset();
 
                 gs.owner = None;
                 gs.last_grab = None;
@@ -955,6 +957,12 @@ pub fn event_to_key_events(
             TO_RELEASE.lock().unwrap().remove(&key);
         }
         _ => {}
+    }
+
+    // Waldlust: Android 상대 한글 조합·한/영 키
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
+    if let Some(events) = wald_hangul::handle(peer.as_str(), event, keyboard_mode) {
+        return events;
     }
 
     let mut key_event = KeyEvent::new();
@@ -1637,5 +1645,170 @@ pub mod input_source {
                 CONFIG_INPUT_SOURCE_2_TIP.to_string(),
             ),
         ]
+    }
+}
+
+/// Waldlust: 원격 한글 입력.
+///
+/// - Android 상대: 원격에 입력기가 없어(접근성으로 글자를 넣음) 제어 PC 가 두벌식으로 조합해
+///   '지우기 + 완성 글자(seq)'로 보낸다. 한글 모드는 Mac 은 로컬 입력 소스를 따르고, Windows 는
+///   한/영 키가 잡기(grab)에 막혀 로컬 입력기가 안 바뀌므로 이 앱 안에서 한/영 키로 토글한다.
+/// - Mac 상대(Windows 제어): 한/영 키를 ControlKey::Hangul 로 보내 원격 Mac 입력 소스를 바꾼다
+///   (map 모드에서는 한/영 스캔코드가 Mac 키코드로 바뀌지 않아 버려졌다).
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+pub mod wald_hangul {
+    use super::*;
+    use crate::hangul_compose::{jamo_for_key, Composer, Edit};
+    use std::collections::HashSet;
+
+    lazy_static::lazy_static! {
+        static ref COMPOSER: Mutex<Composer> = Mutex::new(Composer::default());
+        // 조합에 쓴 키: 뗄 때도 원격에 보내지 않는다.
+        static ref SWALLOWED: Mutex<HashSet<Key>> = Mutex::new(HashSet::new());
+    }
+
+    #[cfg(target_os = "windows")]
+    static HANGUL_MODE: AtomicBool = AtomicBool::new(false);
+    #[cfg(target_os = "windows")]
+    const VK_HANGUL: u32 = 0x15;
+
+    /// 조합을 끝낸다(포커스 바뀜·마우스 클릭 등). 이미 넣은 글자는 그대로 둔다.
+    pub fn reset() {
+        if let Ok(mut c) = COMPOSER.lock() {
+            c.reset();
+        }
+    }
+
+    fn is_hangul_mode() -> bool {
+        #[cfg(target_os = "windows")]
+        return HANGUL_MODE.load(Ordering::SeqCst);
+        #[cfg(target_os = "macos")]
+        return crate::platform::macos_tis::is_korean_input_source();
+        #[cfg(not(any(target_os = "windows", target_os = "macos")))]
+        return false;
+    }
+
+    fn letter_of(key: &Key) -> Option<char> {
+        Some(match key {
+            Key::KeyA => 'a',
+            Key::KeyB => 'b',
+            Key::KeyC => 'c',
+            Key::KeyD => 'd',
+            Key::KeyE => 'e',
+            Key::KeyF => 'f',
+            Key::KeyG => 'g',
+            Key::KeyH => 'h',
+            Key::KeyI => 'i',
+            Key::KeyJ => 'j',
+            Key::KeyK => 'k',
+            Key::KeyL => 'l',
+            Key::KeyM => 'm',
+            Key::KeyN => 'n',
+            Key::KeyO => 'o',
+            Key::KeyP => 'p',
+            Key::KeyQ => 'q',
+            Key::KeyR => 'r',
+            Key::KeyS => 's',
+            Key::KeyT => 't',
+            Key::KeyU => 'u',
+            Key::KeyV => 'v',
+            Key::KeyW => 'w',
+            Key::KeyX => 'x',
+            Key::KeyY => 'y',
+            Key::KeyZ => 'z',
+            _ => return None,
+        })
+    }
+
+    fn edit_events(edit: Edit, mode: KeyboardMode) -> Vec<KeyEvent> {
+        let mut v = Vec::new();
+        for _ in 0..edit.backspaces {
+            let mut e = KeyEvent::new();
+            e.mode = mode.into();
+            e.set_control_key(ControlKey::Backspace);
+            e.press = true;
+            v.push(e);
+        }
+        if !edit.text.is_empty() {
+            // Android 7.x 이하 경로는 press 면 글자를 두 번 넣으므로 down 만 쓴다(try_fill_unicode 와 같음).
+            let mut e = KeyEvent::new();
+            e.mode = mode.into();
+            e.set_seq(edit.text);
+            e.down = true;
+            v.push(e);
+        }
+        v
+    }
+
+    /// None 이면 원래 경로로 보낸다. Some(v) 면 v 만 보낸다(빈 목록이면 아무것도 안 보냄).
+    pub fn handle(peer: &str, event: &Event, mode: KeyboardMode) -> Option<Vec<KeyEvent>> {
+        let (key, down) = match event.event_type {
+            EventType::KeyPress(k) => (k, true),
+            EventType::KeyRelease(k) => (k, false),
+            _ => return None,
+        };
+
+        #[cfg(target_os = "windows")]
+        if event.platform_code == VK_HANGUL {
+            match peer {
+                OS_LOWER_ANDROID => {
+                    reset();
+                    if down {
+                        let on = !HANGUL_MODE.load(Ordering::SeqCst);
+                        HANGUL_MODE.store(on, Ordering::SeqCst);
+                        log::info!("hangul mode (android peer): {}", on);
+                    }
+                    return Some(vec![]);
+                }
+                OS_LOWER_MACOS => {
+                    if !down {
+                        return Some(vec![]);
+                    }
+                    let mut e = KeyEvent::new();
+                    e.mode = KeyboardMode::Legacy.into();
+                    e.set_control_key(ControlKey::Hangul);
+                    e.down = true;
+                    return Some(vec![e]);
+                }
+                _ => return None,
+            }
+        }
+
+        if peer != OS_LOWER_ANDROID {
+            return None;
+        }
+
+        if !down {
+            if SWALLOWED.lock().unwrap().remove(&key) {
+                return Some(vec![]);
+            }
+            return None;
+        }
+
+        if is_modifier(&key) || key == Key::CapsLock {
+            return None;
+        }
+        let (alt, ctrl, shift, command) = client::get_modifiers_state(false, false, false, false);
+
+        if key == Key::Backspace && !(alt || ctrl || command) {
+            let edit = COMPOSER.lock().unwrap().backspace();
+            return edit.map(|edit| {
+                SWALLOWED.lock().unwrap().insert(key);
+                edit_events(edit, mode)
+            });
+        }
+
+        let jamo = letter_of(&key).and_then(|l| jamo_for_key(l, shift));
+        match jamo {
+            Some(j) if !(alt || ctrl || command) && is_hangul_mode() => {
+                let edit = COMPOSER.lock().unwrap().input(j);
+                SWALLOWED.lock().unwrap().insert(key);
+                Some(edit_events(edit, mode))
+            }
+            _ => {
+                reset();
+                None
+            }
+        }
     }
 }

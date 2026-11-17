@@ -1,4 +1,6 @@
 mod keyboard;
+#[cfg(not(any(target_os = "android", target_os = "ios")))]
+mod hangul_compose;
 /// cbindgen:ignore
 pub mod platform;
 #[cfg(not(any(target_os = "android", target_os = "ios")))]

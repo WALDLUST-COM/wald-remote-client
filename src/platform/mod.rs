@@ -17,6 +17,9 @@ pub mod macos;
 #[cfg(target_os = "macos")]
 pub mod delegate;
 
+#[cfg(target_os = "macos")]
+pub mod macos_tis;
+
 #[cfg(target_os = "linux")]
 pub mod linux;
 
