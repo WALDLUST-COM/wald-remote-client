@@ -124,6 +124,39 @@ class InputService : AccessibilityService() {
     private var lastX = 0
     private var lastY = 0
 
+    /**
+     * 뒤로(BACK_UP)·홈(휠 버튼 짧게)·최근 앱(휠 버튼 길게)을 접근성 전역 동작으로 한다. performGlobalAction 은 API 16 이라
+     * 제스처(dispatchGesture — API 24)가 없는 Android 5.x·6.0 에서도 된다 — 그래서 [InputBridgeService.pointer] 가 7.0 미만에서는
+     * 터치를 버리고 이것만 부른다(2026-11-17 크라이저 U4X+CM, Android 5.1.1). 7.0 이상은 [onMouseInput] 이 부른다.
+     * @return 이 세 마스크 중 하나였으면 true
+     */
+    fun onGlobalButton(mask: Int): Boolean {
+        when (mask) {
+            BACK_UP -> performGlobalAction(GLOBAL_ACTION_BACK)
+            // long WHEEL_BUTTON_DOWN -> GLOBAL_ACTION_RECENTS
+            WHEEL_BUTTON_DOWN -> {
+                timer.purge()
+                recentActionTask = object : TimerTask() {
+                    override fun run() {
+                        performGlobalAction(GLOBAL_ACTION_RECENTS)
+                        recentActionTask = null
+                    }
+                }
+                timer.schedule(recentActionTask, LONG_TAP_DELAY)
+            }
+            // wheel button up
+            WHEEL_BUTTON_UP -> {
+                if (recentActionTask != null) {
+                    recentActionTask!!.cancel()
+                    recentActionTask = null
+                    performGlobalAction(GLOBAL_ACTION_HOME)
+                }
+            }
+            else -> return false
+        }
+        return true
+    }
+
     @RequiresApi(Build.VERSION_CODES.N)
     fun onMouseInput(mask: Int, _x: Int, _y: Int) {
         val x = max(0, _x)
@@ -180,31 +213,11 @@ class InputService : AccessibilityService() {
             return
         }
 
-        if (mask == BACK_UP) {
-            performGlobalAction(GLOBAL_ACTION_BACK)
+        if (mask == BACK_UP || mask == WHEEL_BUTTON_UP) {
+            onGlobalButton(mask)
             return
         }
-
-        // long WHEEL_BUTTON_DOWN -> GLOBAL_ACTION_RECENTS
-        if (mask == WHEEL_BUTTON_DOWN) {
-            timer.purge()
-            recentActionTask = object : TimerTask() {
-                override fun run() {
-                    performGlobalAction(GLOBAL_ACTION_RECENTS)
-                    recentActionTask = null
-                }
-            }
-            timer.schedule(recentActionTask, LONG_TAP_DELAY)
-        }
-
-        // wheel button up
-        if (mask == WHEEL_BUTTON_UP) {
-            if (recentActionTask != null) {
-                recentActionTask!!.cancel()
-                performGlobalAction(GLOBAL_ACTION_HOME)
-            }
-            return
-        }
+        if (mask == WHEEL_BUTTON_DOWN) onGlobalButton(mask)
 
         if (mask == WHEEL_DOWN) {
             if (mouseY < WHEEL_STEP) {
