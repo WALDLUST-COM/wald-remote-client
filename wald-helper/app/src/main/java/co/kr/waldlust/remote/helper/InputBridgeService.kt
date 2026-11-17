@@ -99,7 +99,12 @@ class InputBridgeService : Service() {
         }
 
         override fun pointer(kind: Int, mask: Int, x: Int, y: Int) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) return
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.N) {
+                // 7.0 미만은 제스처(dispatchGesture)가 없어 터치는 못 넣지만(입력 플러그인이 맡는다) 뒤로·홈·최근 앱은
+                // 전역 동작(API 16)으로 된다 — 이것까지 버려서 5.x 기기에서 원격 홈 버튼이 안 먹었다(2026-11-17 크라이저 U4X+CM)
+                if (kind == 1) InputService.ctx?.onGlobalButton(mask)
+                return
+            }
             val svc = InputService.ctx ?: return
             if (kind == 0) {
                 svc.onTouchInput(mask, x, y)
