@@ -2241,6 +2241,18 @@ pub fn handle_key_(evt: &KeyEvent) {
         return;
     }
 
+    // Waldlust: 원격의 한/영 키 → 이 Mac 입력 소스를 한국어 ↔ 영문으로 바꾼다
+    // (enigo 는 Hangul 키를 넣지 못하고, CGEvent 로는 입력 소스가 바뀌지 않는다).
+    #[cfg(target_os = "macos")]
+    if let Some(key_event::Union::ControlKey(ck)) = &evt.union {
+        if ck.enum_value_or(ControlKey::Unknown) == ControlKey::Hangul {
+            if evt.down || evt.press {
+                crate::platform::macos_tis::toggle_korean_input_source();
+            }
+            return;
+        }
+    }
+
     #[cfg(not(any(target_os = "android", target_os = "ios")))]
     let mut _lock_mode_handler = None;
     #[cfg(not(any(target_os = "android", target_os = "ios")))]

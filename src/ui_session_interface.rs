@@ -1239,6 +1239,11 @@ impl<T: InvokeUiSession> Session<T> {
 
         // Compute event type once using MOUSE_TYPE_MASK for reuse
         let event_type = mask & MOUSE_TYPE_MASK;
+        // Waldlust: 클릭하면 한글 조합을 끝낸다(커서가 옮겨졌을 수 있음).
+        #[cfg(not(any(target_os = "android", target_os = "ios")))]
+        if event_type == MOUSE_TYPE_DOWN {
+            keyboard::wald_hangul::reset();
+        }
         let (x, y) = if event_type == MOUSE_TYPE_WHEEL || event_type == MOUSE_TYPE_TRACKPAD {
             self.get_scroll_xy((x, y))
         } else {
