@@ -442,7 +442,7 @@ class InputService : AccessibilityService() {
 
     // 원본 onKeyEvent(data: ByteArray) 의 뒷부분. 앞부분(protobuf 풀기·글자 만들기·KeyEventConverter·볼륨·전원)은 원격 앱이 한다.
     // ke: API 33 미만이거나 글자가 없을 때의 android KeyEvent(원본과 같은 조건), textToCommit: 넣을 글자, press: 원본 keyEvent.getPress().
-    @RequiresApi(Build.VERSION_CODES.N)
+    // minSdk(22)에서 된다 — 7.0 이상 표시(@RequiresApi N)를 뗐다. 13+ 입력기 경로는 아래에서 SDK_INT 로 가른다.
     fun onBridgeKey(ke: KeyEventAndroid?, textToCommit: String?, press: Boolean) {
         Log.d(logTag, "onBridgeKey keyCode:${ke?.keyCode} action:${ke?.action} textLen:${textToCommit?.length} press:$press")
 
