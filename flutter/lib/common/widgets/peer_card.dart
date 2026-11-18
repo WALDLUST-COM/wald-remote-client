@@ -158,8 +158,8 @@ class _PeerCardState extends State<_PeerCard>
       children: [
         Container(
             decoration: BoxDecoration(
-              // Waldlust(DSK-04 — 부록 A-75): 임의 색 대신 회색 바탕 + 회색 플랫폼 그림(wald_ab.dart).
-              color: waldPeerAvatarBg,
+              // Waldlust(DSK-04 — 부록 A-75): 임의 색 대신 OS 별 연한 바탕 + OS 색 로고(wald_ab.dart).
+              color: waldPlatformAvatarBg(peer.platform),
               borderRadius: isPortrait
                   ? BorderRadius.circular(_tileRadius)
                   : BorderRadius.only(
@@ -305,7 +305,7 @@ class _PeerCardState extends State<_PeerCard>
               children: [
                 Expanded(
                   child: Container(
-                    color: waldPeerAvatarBg, // 부록 A-75
+                    color: waldPlatformAvatarBg(peer.platform), // 부록 A-75
                     child: Row(
                       children: [
                         Expanded(

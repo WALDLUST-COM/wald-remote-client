@@ -183,42 +183,56 @@ const waldPeerAvatarFg = WaldPalette.neutral600;
 /// const 가 아닌 것은 `waldAbBrandPanel` 처럼 업스트림 삭제 코드가 죽은 코드로 표시되지 않게 하려는 것이다.
 final waldAppPeerDelete = false;
 
-/// Waldlust(DSK-04): OS 로고 색 — 어드민 `admin/app/components/OsName.tsx` 의 OS_COLOR 와 같은 값.
+/// Waldlust(DSK-04): OS 로고 색과 아바타 바탕 — OS 연한 바탕 + 진한 OS 색 로고.
+/// 처음(f3f21d83c)엔 어드민 `admin/app/components/OsName.tsx` OS_COLOR 를 회색 바탕에 그대로 칠했는데,
+/// Android 초록 #3DDC84 는 회색 #E5E5E5 와 대비가 1.4:1 이라 잘 안 보였다(그래픽 최소 3:1).
+/// 그래서 색 계열은 어드민과 같게 두고 로고를 진하게, 바탕을 그 색의 연한 톤으로 바꿨다(대비 4:1 이상):
+/// Windows #0067B8 / #E6F1FA = 5.1 · Android #188038 / #E4F5EB = 4.4 · macOS·Linux 는 회색 바탕 그대로(13.4·10.0).
 /// (Apple 은 공식 색이 검정뿐, Linux 는 Tux 에 단색 공식 색이 없어 짙은 회색.)
-const _waldOsColorWindows = Color(0xFF0078D4);
-const _waldOsColorMac = Color(0xFF1D1D1F);
-const _waldOsColorLinux = Color(0xFF333333);
-const _waldOsColorAndroid = Color(0xFF3DDC84);
+class _WaldOsTone {
+  final String asset;
+  final Color fg;
+  final Color bg;
+  const _WaldOsTone(this.asset, this.fg, this.bg);
+}
+
+const _waldOsToneWindows =
+    _WaldOsTone('win', Color(0xFF0067B8), Color(0xFFE6F1FA));
+const _waldOsToneMac =
+    _WaldOsTone('mac', Color(0xFF1D1D1F), waldPeerAvatarBg);
+const _waldOsToneLinux =
+    _WaldOsTone('linux', Color(0xFF333333), waldPeerAvatarBg);
+const _waldOsToneAndroid =
+    _WaldOsTone('android', Color(0xFF188038), Color(0xFFE4F5EB));
+
+// 대응은 common.dart getPlatformImage 와 같다(모르는 값은 Windows).
+_WaldOsTone? _waldOsTone(String platform) {
+  if (platform.isEmpty) return null;
+  if (platform == kPeerPlatformMacOS) return _waldOsToneMac;
+  if (platform == kPeerPlatformLinux) return _waldOsToneLinux;
+  if (platform == kPeerPlatformAndroid) return _waldOsToneAndroid;
+  return _waldOsToneWindows;
+}
+
+/// 기기 아바타 바탕 — 로고(`waldPlatformIcon`)와 짝. 플랫폼을 모르면 회색.
+Color waldPlatformAvatarBg(String platform) =>
+    _waldOsTone(platform)?.bg ?? waldPeerAvatarBg;
 
 Widget waldPlatformIcon(String platform, {required double size}) {
-  if (platform.isEmpty) {
+  final tone = _waldOsTone(platform);
+  if (tone == null) {
     // 플랫폼을 모르는 기기(한 번도 접속하지 않았거나 어드민 정보가 없음)는 모니터 그림.
+    // neutral500 — 회색 바탕에서 3.8:1(neutral400 은 2.0:1 로 흐렸다).
     return SizedBox(
         width: size,
         height: size,
         child: Icon(waldIcon(Icons.computer),
-            size: size * 0.8, color: WaldPalette.neutral400));
+            size: size * 0.8, color: WaldPalette.neutral500));
   }
-  // 대응은 common.dart getPlatformImage 와 같다.
-  final String name;
-  final Color color;
-  if (platform == kPeerPlatformMacOS) {
-    name = 'mac';
-    color = _waldOsColorMac;
-  } else if (platform == kPeerPlatformLinux) {
-    name = 'linux';
-    color = _waldOsColorLinux;
-  } else if (platform == kPeerPlatformAndroid) {
-    name = 'android';
-    color = _waldOsColorAndroid;
-  } else {
-    name = 'win';
-    color = _waldOsColorWindows;
-  }
-  return SvgPicture.asset('assets/$name.svg',
+  return SvgPicture.asset('assets/${tone.asset}.svg',
       height: size,
       width: size,
-      colorFilter: ColorFilter.mode(color, BlendMode.srcIn));
+      colorFilter: ColorFilter.mode(tone.fg, BlendMode.srcIn));
 }
 
 /// Waldlust(DSK-04): 주소록 왼쪽 패널에 선택 드롭다운·태그 대신 브랜드 목록을 둔다(`address_book.dart`).
