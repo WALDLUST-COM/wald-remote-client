@@ -178,6 +178,18 @@ String? waldPeerSubtitle(Peer peer) {
 const waldPeerAvatarBg = WaldPalette.neutral200;
 const waldPeerAvatarFg = WaldPalette.neutral600;
 
+/// Waldlust(DSK-04): 앱(데스크탑·폰 모두)은 기기 삭제를 하지 않는다 — 삭제·정리는 어드민에서 한다.
+/// 카드 메뉴의 '삭제'와 체크 선택 모드(일괄 삭제)가 이 값을 따른다.
+/// const 가 아닌 것은 `waldAbBrandPanel` 처럼 업스트림 삭제 코드가 죽은 코드로 표시되지 않게 하려는 것이다.
+final waldAppPeerDelete = false;
+
+/// Waldlust(DSK-04): OS 로고 색 — 어드민 `admin/app/components/OsName.tsx` 의 OS_COLOR 와 같은 값.
+/// (Apple 은 공식 색이 검정뿐, Linux 는 Tux 에 단색 공식 색이 없어 짙은 회색.)
+const _waldOsColorWindows = Color(0xFF0078D4);
+const _waldOsColorMac = Color(0xFF1D1D1F);
+const _waldOsColorLinux = Color(0xFF333333);
+const _waldOsColorAndroid = Color(0xFF3DDC84);
+
 Widget waldPlatformIcon(String platform, {required double size}) {
   if (platform.isEmpty) {
     // 플랫폼을 모르는 기기(한 번도 접속하지 않았거나 어드민 정보가 없음)는 모니터 그림.
@@ -189,18 +201,24 @@ Widget waldPlatformIcon(String platform, {required double size}) {
   }
   // 대응은 common.dart getPlatformImage 와 같다.
   final String name;
+  final Color color;
   if (platform == kPeerPlatformMacOS) {
     name = 'mac';
-  } else if (platform != kPeerPlatformLinux &&
-      platform != kPeerPlatformAndroid) {
-    name = 'win';
+    color = _waldOsColorMac;
+  } else if (platform == kPeerPlatformLinux) {
+    name = 'linux';
+    color = _waldOsColorLinux;
+  } else if (platform == kPeerPlatformAndroid) {
+    name = 'android';
+    color = _waldOsColorAndroid;
   } else {
-    name = platform.toLowerCase();
+    name = 'win';
+    color = _waldOsColorWindows;
   }
   return SvgPicture.asset('assets/$name.svg',
       height: size,
       width: size,
-      colorFilter: const ColorFilter.mode(waldPeerAvatarFg, BlendMode.srcIn));
+      colorFilter: ColorFilter.mode(color, BlendMode.srcIn));
 }
 
 /// Waldlust(DSK-04): 주소록 왼쪽 패널에 선택 드롭다운·태그 대신 브랜드 목록을 둔다(`address_book.dart`).

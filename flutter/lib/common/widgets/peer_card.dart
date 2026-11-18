@@ -1010,8 +1010,11 @@ class RecentPeerCard extends BasePeerCard {
       menuItems.add(_addToAb(peer));
     }
 
-    menuItems.add(MenuEntryDivider());
-    menuItems.add(_removeAction(peer.id));
+    // Waldlust(DSK-04): 앱은 기기 삭제를 하지 않는다(어드민에서) — waldAppPeerDelete.
+    if (waldAppPeerDelete) {
+      menuItems.add(MenuEntryDivider());
+      menuItems.add(_removeAction(peer.id));
+    }
     return menuItems;
   }
 
@@ -1078,8 +1081,10 @@ class FavoritePeerCard extends BasePeerCard {
       menuItems.add(_addToAb(peer));
     }
 
-    menuItems.add(MenuEntryDivider());
-    menuItems.add(_removeAction(peer.id));
+    if (waldAppPeerDelete) {
+      menuItems.add(MenuEntryDivider());
+      menuItems.add(_removeAction(peer.id));
+    }
     return menuItems;
   }
 
@@ -1138,8 +1143,10 @@ class DiscoveredPeerCard extends BasePeerCard {
       menuItems.add(_addToAb(peer));
     }
 
-    menuItems.add(MenuEntryDivider());
-    menuItems.add(_removeAction(peer.id));
+    if (waldAppPeerDelete) {
+      menuItems.add(MenuEntryDivider());
+      menuItems.add(_removeAction(peer.id));
+    }
     return menuItems;
   }
 
@@ -1220,7 +1227,7 @@ class AddressBookPeerCard extends BasePeerCard {
       menuItems.add(_addToAb(peer));
     }
     menuItems.add(_existIn());
-    if (gFFI.abModel.current.canWrite()) {
+    if (waldAppPeerDelete && gFFI.abModel.current.canWrite()) {
       menuItems.add(MenuEntryDivider());
       menuItems.add(_removeAction(peer.id));
     }

@@ -608,7 +608,10 @@ class _PeerTabPageState extends State<PeerTabPage>
           index: PeerTabIndex.group, loading: gFFI.groupModel.groupLoading),
       Offstage(
         // Waldlust(DSK-12 — 부록 A-57): 모바일(폰 가로)은 여러 개 선택 버튼을 두지 않는다.
-        offstage: model.currentTabCachedPeers.isEmpty || isMobile,
+        // Waldlust(DSK-04): 데스크탑도 두지 않는다(waldAppPeerDelete) — 체크 후 삭제 등 정리는 어드민에서 한다.
+        offstage: model.currentTabCachedPeers.isEmpty ||
+            isMobile ||
+            !waldAppPeerDelete,
         child: _createMultiSelection(),
       ),
       _createPeerViewTypeSwitch(context),
@@ -776,8 +779,9 @@ class _PeerSearchBarState extends State<PeerSearchBar> {
     final focused = _focused;
     final focusNode = _focusNode;
     return Obx(() => Container(
+          // Waldlust(DSK-04): 가로 화면 검색 칸 140 → 200 (긴 ID 가 잘렸다).
           width:
-              widget.openWidth ?? (stateGlobal.isPortrait.isTrue ? 120 : 140),
+              widget.openWidth ?? (stateGlobal.isPortrait.isTrue ? 120 : 200),
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.background,
             borderRadius: BorderRadius.circular(6),
