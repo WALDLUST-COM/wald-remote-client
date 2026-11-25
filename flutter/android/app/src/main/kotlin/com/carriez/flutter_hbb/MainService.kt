@@ -847,7 +847,10 @@ class MainService : Service() {
         cancelNotification(clientID)
         // Waldlust(DSK-02 — 부록 A-52): 연결 알림을 따로 띄우지 않고 서비스 알림 문구를 바꾼다(상단바 아이콘 하나).
         // Waldlust(DSK-07): 접속한 쪽 이름(username)은 알림에 넣지 않는다(부록 A-31).
-        updateForegroundNotification("$type ${translate("Established")}", peerId, true)
+        // Waldlust(DSK-02 — 부록 A-78): 비밀번호로만 받는 기기(approve-mode=password — 수신 전용)는 소리·헤드업 없이
+        // 문구만 바꾼다. 늘 떠 있는 서비스 알림의 헤드업이 Android 9 보드에서 사라지지 않고 상단바를 펼쳐 둔 채 남았다.
+        val alert = FFI.getOption("approve-mode") != "password"
+        updateForegroundNotification("$type ${translate("Established")}", peerId, alert)
     }
 
     private fun voiceCallRequestNotification(
