@@ -506,8 +506,8 @@ class _FileManagerPageState extends State<FileManagerPage>
         content: waldDialogHeader(
             badge: waldDialogBadge(waldIcon(Icons.upload_rounded))
                 .marginOnly(right: 14),
-            title: translate('Send {} item(s) to remote?')
-                .replaceAll('{}', '$count'),
+            // 번역 함수가 '{N}' 의 N 을 번역문의 '{}' 에 넣는다(src/lang.rs extract_placeholder).
+            title: translate('Send {$count} item(s) to remote?'),
             text: toPath),
         actions: [
           dialogButton(
