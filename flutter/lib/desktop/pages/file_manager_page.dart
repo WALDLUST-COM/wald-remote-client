@@ -468,9 +468,60 @@ class _FileManagerPageState extends State<FileManagerPage>
       _localViewKey.currentState?.waldOpenDropped(details);
       return;
     }
-    // Waldlust(DSK-07): 원격 목록에 놓아 바로 보내기는 오전송을 막으려고 우선 막는다
-    // (2026-10-16 사용자 결정, 부록 A-37). 보내기는 '보내기' 버튼으로만 한다. 되살릴 때는
-    // 0c5d7027f 의 보내기(내 쪽 항목 → localController.sendFiles)를 쓴다.
+    // Waldlust(DSK-07): 원격 목록에 놓은 내 파일(Finder·탐색기에서 끌어 온 것)은 확인 창을 거쳐
+    // 원격의 지금 폴더로 보낸다. 2026-10-16 오전송 우려로 막았다가(부록 A-37) 2026-11-26 사용자
+    // 결정으로 확인 창을 붙여 되살렸다. 업스트림은 원격 쪽 항목으로 만들어 그 경로를 원격에서
+    // 받아 왔다(0c5d7027f).
+    _waldSendDropped(details);
+  }
+
+  Future<void> _waldSendDropped(DropDoneDetails details) async {
+    final items = SelectedItems(isLocal: true);
+    for (var file in details.files) {
+      final type = FileSystemEntity.typeSync(file.path);
+      if (type == FileSystemEntityType.notFound) continue;
+      items.add(Entry()
+        ..path = file.path
+        ..name = file.name
+        ..size = type == FileSystemEntityType.directory
+            ? 0
+            : File(file.path).lengthSync());
+    }
+    if (items.items.isEmpty) return;
+    final otherSideData = model.remoteController.directoryData();
+    final toPath = otherSideData.directory.path;
+    if (toPath.isEmpty) return;
+    final ok = await _waldConfirmSend(items.items.length, toPath);
+    if (ok != true) return;
+    model.localController.sendFiles(items, otherSideData);
+  }
+
+  Future<bool?> _waldConfirmSend(int count, String toPath) {
+    return _ffi.dialogManager.show<bool>(
+        (setState, Function(bool v) close, context) {
+      cancel() => close(false);
+      submit() => close(true);
+      return CustomAlertDialog(
+        contentBoxConstraints: BoxConstraints(minWidth: 400, maxWidth: 400),
+        content: waldDialogHeader(
+            badge: waldDialogBadge(waldIcon(Icons.upload_rounded))
+                .marginOnly(right: 14),
+            title: translate('Send {} item(s) to remote?')
+                .replaceAll('{}', '$count'),
+            text: toPath),
+        actions: [
+          dialogButton(
+            'Cancel',
+            icon: Icon(waldIcon(Icons.close_rounded)),
+            onPressed: cancel,
+            isOutline: true,
+          ),
+          dialogButton('Send', onPressed: submit),
+        ],
+        onSubmit: submit,
+        onCancel: cancel,
+      );
+    }, useAnimation: false);
   }
 }
 
@@ -1135,6 +1186,12 @@ class _FileManagerViewState extends State<FileManagerView> {
             final items = selectedItems;
             // handle double click
             if (_checkDoubleClick(entry)) {
+              // Waldlust(DSK-08): 내 PC 파일은 OS 기본 앱으로 연다(실행 파일은 폴더에서 보기 — Q-16 (c)).
+              // 원격 파일은 아무것도 하지 않는다. 업스트림은 파일에도 openDirectory 를 불러 조용히 실패했다.
+              if (entry.isFile) {
+                if (isLocal) waldOpenLocalFile(entry.path);
+                return;
+              }
               controller.openDirectory(entry.path);
               items.clear();
               return;
@@ -1152,7 +1209,18 @@ class _FileManagerViewState extends State<FileManagerView> {
                   onTap: () {
                     controller.renameAction(entry, isLocal);
                   },
-                )
+                ),
+              // Waldlust(DSK-08): 내 PC 항목은 든 폴더를 열고 그 항목을 선택한다(Finder·탐색기).
+              if (isLocal && !entry.isDrive)
+                mod_menu.PopupMenuItem(
+                  child: Text(translate(Platform.isMacOS
+                      ? 'Show in Finder'
+                      : Platform.isWindows
+                          ? 'Show in Explorer'
+                          : 'Open folder')),
+                  height: CustomPopupMenuTheme.height,
+                  onTap: () => waldRevealLocalPath(entry.path),
+                ),
             ];
             if (items.isNotEmpty) {
               rightClickEntry.value = entry;

@@ -868,6 +868,10 @@ pub static ref T: std::collections::HashMap<&'static str, &'static str> =
         ("Open folder", "폴더 열기"),
         ("File not found", "파일을 찾을 수 없습니다"),
         ("Failed to open", "열지 못했습니다"),
+        // Waldlust(DSK-08·DSK-07): 내 PC 항목 우클릭 위치 열기, 원격 목록 드롭 보내기 확인.
+        ("Show in Finder", "Finder에서 보기"),
+        ("Show in Explorer", "탐색기에서 보기"),
+        ("Send {} item(s) to remote?", "{}개 항목을 원격으로 보낼까요?"),
         // Waldlust(DSK-07): 원격 툴바 버튼 이름·모바일 제어 막대.
         ("Pin", "고정"),
         ("Switch screen", "화면 전환"),
