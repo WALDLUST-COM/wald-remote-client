@@ -317,6 +317,7 @@ class MainService : Service() {
         val prefs = applicationContext.getSharedPreferences(KEY_SHARED_PREFERENCES, FlutterActivity.MODE_PRIVATE)
         val configPath = prefs.getString(KEY_APP_DIR_CONFIG_PATH, "") ?: ""
         FFI.startServer(configPath, "")
+        waldUseQuietChannelIfPasswordOnly()
 
         createForegroundNotification()
         // Waldlust(DSK-02 2단계): 원격지원 도우미의 입력 제어에 연결(부팅·도우미 깨우기로 앱 화면 없이 시작돼도)
@@ -792,6 +793,27 @@ class MainService : Service() {
         notificationBuilder = NotificationCompat.Builder(this, notificationChannel)
     }
 
+    // Waldlust(DSK-02 — 부록 A-78): 비밀번호로만 받는 기기(approve-mode=password — 수신 전용)는 서비스 알림을
+    // 중요도 LOW 채널로 띄운다(헤드업·소리 없음, 상단바 아이콘·알림은 그대로). HIGH 채널이면 서비스 알림이 뜰 때마다
+    // 헤드업이 되고, Android 9 보드에서 그 헤드업이 사라지지 않아 상단바가 펼쳐진 채 남았다. 채널 중요도는 만든 뒤
+    // 올릴 수 없어 새 ID 를 쓰고 옛 채널은 지운다. 프리셋은 startServer 에서 적용되므로 그 뒤에 부른다.
+    private fun waldUseQuietChannelIfPasswordOnly() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
+        if (FFI.getOption("approve-mode") != "password") return
+        val channelId = "WaldlustQuiet"
+        val channel = NotificationChannel(
+            channelId,
+            "Waldlust 원격지원 서비스", NotificationManager.IMPORTANCE_LOW
+        ).apply {
+            description = "Waldlust 원격지원 서비스 채널"
+        }
+        channel.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+        notificationManager.createNotificationChannel(channel)
+        notificationManager.deleteNotificationChannel(notificationChannel)
+        notificationChannel = channelId
+        notificationBuilder.setChannelId(channelId)
+    }
+
     @SuppressLint("UnspecifiedImmutableFlag")
     private fun createForegroundNotification() {
         val intent = Intent(this, MainActivity::class.java).apply {
@@ -847,7 +869,10 @@ class MainService : Service() {
         cancelNotification(clientID)
         // Waldlust(DSK-02 — 부록 A-52): 연결 알림을 따로 띄우지 않고 서비스 알림 문구를 바꾼다(상단바 아이콘 하나).
         // Waldlust(DSK-07): 접속한 쪽 이름(username)은 알림에 넣지 않는다(부록 A-31).
-        updateForegroundNotification("$type ${translate("Established")}", peerId, true)
+        // Waldlust(DSK-02 — 부록 A-78): 비밀번호로만 받는 기기(approve-mode=password — 수신 전용)는 소리·헤드업 없이
+        // 문구만 바꾼다. 늘 떠 있는 서비스 알림의 헤드업이 Android 9 보드에서 사라지지 않고 상단바를 펼쳐 둔 채 남았다.
+        val alert = FFI.getOption("approve-mode") != "password"
+        updateForegroundNotification("$type ${translate("Established")}", peerId, alert)
     }
 
     private fun voiceCallRequestNotification(
