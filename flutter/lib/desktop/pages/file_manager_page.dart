@@ -5,6 +5,7 @@ import 'dart:math';
 import 'package:extended_text/extended_text.dart';
 import 'package:flutter_hbb/common/wald_local_open.dart';
 import 'package:flutter_hbb/common/widgets/dialog.dart';
+import 'package:flutter_hbb/common/widgets/wald_ab.dart';
 import 'package:flutter_hbb/desktop/widgets/dragable_divider.dart';
 import 'package:percent_indicator/percent_indicator.dart';
 import 'package:desktop_drop/desktop_drop.dart';
@@ -668,30 +669,29 @@ class _FileManagerViewState extends State<FileManagerView> {
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       // Waldlust(DSK-07, 부록 A-36): 배지 50 → 40, 제목 16·굵게.
-                      Container(
-                          width: 40,
-                          height: 40,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.all(Radius.circular(8)),
-                            color: MyTheme.accent,
-                          ),
-                          padding: EdgeInsets.all(7.0),
-                          child: FutureBuilder<String>(
-                              future: bind.sessionGetPlatform(
-                                  sessionId: _ffi.sessionId,
-                                  isRemote: !isLocal),
-                              builder: (context, snapshot) {
-                                if (snapshot.hasData &&
-                                    snapshot.data!.isNotEmpty) {
-                                  return getPlatformImage('${snapshot.data}');
-                                } else {
-                                  return CircularProgressIndicator(
-                                    color: Theme.of(context)
-                                        .tabBarTheme
-                                        .labelColor,
-                                  );
-                                }
-                              })),
+                      // Waldlust(DSK-07 — 부록 A-80): 검정 배지 + 흰 로고 대신 주소록 클라이언트 카드와 같은
+                      // OS 연한 바탕 + 진한 OS 색 로고(wald_ab.dart waldPlatformAvatarBg·waldPlatformIcon).
+                      FutureBuilder<String>(
+                          future: bind.sessionGetPlatform(
+                              sessionId: _ffi.sessionId, isRemote: !isLocal),
+                          builder: (context, snapshot) {
+                            final platform = snapshot.data ?? '';
+                            return Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(8)),
+                                  color: waldPlatformAvatarBg(platform),
+                                ),
+                                padding: EdgeInsets.all(7.0),
+                                child: snapshot.hasData && platform.isNotEmpty
+                                    ? waldPlatformIcon(platform, size: 26)
+                                    : CircularProgressIndicator(
+                                        strokeWidth: 2,
+                                        color: WaldPalette.neutral500,
+                                      ));
+                          }),
                       Text(
                               isLocal
                                   ? translate("Local Computer")
